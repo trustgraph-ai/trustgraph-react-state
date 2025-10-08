@@ -351,4 +351,6 @@ npm run typecheck
 
 ## License
 
-MIT
+Apache 2.0
+
+(c) KnowNext Inc., KnowNext Limited 2025

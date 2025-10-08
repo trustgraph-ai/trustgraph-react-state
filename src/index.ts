@@ -1,3 +1,14 @@
+// Re-export socket provider so users only need to install @trustgraph/react-state
+export {
+  SocketProvider,
+  SocketContext,
+  ConnectionStateContext,
+} from "@trustgraph/react-provider";
+export type { SocketProviderProps } from "@trustgraph/react-provider";
+
+// Re-export commonly used types from client
+export type { BaseApi, Triple, Value, ConnectionState } from "@trustgraph/client";
+
 // Provider and types
 export { NotificationProvider } from "./NotificationProvider";
 export type { NotificationProviderProps } from "./NotificationProvider";

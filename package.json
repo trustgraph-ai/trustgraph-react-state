@@ -33,8 +33,8 @@
     "hooks",
     "tanstack-query"
   ],
-  "author": "",
-  "license": "MIT",
+  "author": "KnowNext Limited",
+  "license": "Apache-2.0",
   "dependencies": {
     "@trustgraph/client": "github:trustgraph-ai/trustgraph-client#master",
     "@trustgraph/react-provider": "github:trustgraph-ai/trustgraph-react-provider#master",
@@ -74,5 +74,16 @@
     "uuid": "^11.0.3",
     "vitest": "^3.2.4",
     "zustand": "^5.0.2"
-  }
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trustgraph-ai/trustgraph-react-state.git"
+  },
+  "bugs": {
+    "url": "https://github.com/trustgraph-ai/trustgraph-react-state/issues"
+  },
+  "homepage": "https://github.com/trustgraph-ai/trustgraph-react-state#readme"
 }

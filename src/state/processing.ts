@@ -25,8 +25,10 @@ export const useProcessing = () => {
   const processingQuery = useQuery({
     queryKey: ["processing"],
     enabled: isSocketReady,
-    queryFn: () => {
-      return socket.librarian().getProcessing();
+    queryFn: async () => {
+      const result = await socket.librarian().getProcessing();
+      // React Query requires non-undefined return value
+      return result || [];
     },
   });
 

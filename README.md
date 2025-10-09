@@ -17,6 +17,111 @@ React state management hooks for TrustGraph applications. Provides TanStack Quer
 npm install @trustgraph/react-state @trustgraph/react-provider @trustgraph/client
 ```
 
+## Building from Scratch
+
+New to TrustGraph? Here's how to build your first app from a blank slate.
+
+### 1. Create a new React + TypeScript project
+
+```bash
+# Create a new Vite project with React + TypeScript
+npm create vite@latest my-trustgraph-app -- --template react-ts
+cd my-trustgraph-app
+```
+
+### 2. Install TrustGraph dependencies
+
+```bash
+# Install TrustGraph packages
+npm install @trustgraph/react-state @trustgraph/react-provider @trustgraph/client
+
+# Install required peer dependencies
+npm install @tanstack/react-query zustand
+
+# Install a toast/notification library (optional, we'll use console for this example)
+```
+
+### 3. Set up the provider wrapper
+
+Create or update `src/App.tsx`:
+
+```typescript
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SocketProvider } from "@trustgraph/react-provider";
+import { NotificationProvider, NotificationHandler } from "@trustgraph/react-state";
+import MyFirstComponent from "./MyFirstComponent";
+
+// Simple console-based notification handler for development
+const notificationHandler: NotificationHandler = {
+  success: (msg) => console.log("✓", msg),
+  error: (msg) => console.error("✗", msg),
+  warning: (msg) => console.warn("⚠", msg),
+  info: (msg) => console.info("ℹ", msg),
+};
+
+const queryClient = new QueryClient();
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <NotificationProvider handler={notificationHandler}>
+        <SocketProvider user="my-user" apiKey="">
+          <MyFirstComponent />
+        </SocketProvider>
+      </NotificationProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
+```
+
+### 4. Create your first component
+
+Create `src/MyFirstComponent.tsx`:
+
+```typescript
+import { useFlows, useSettings } from "@trustgraph/react-state";
+
+function MyFirstComponent() {
+  const { flows, isLoading } = useFlows();
+  const { settings } = useSettings();
+
+  if (isLoading) return <div>Loading flows...</div>;
+
+  return (
+    <div>
+      <h1>My TrustGraph App</h1>
+      <p>User: {settings.user}</p>
+      <p>Collection: {settings.collection}</p>
+      <h2>Available Flows:</h2>
+      <ul>
+        {flows?.map((flow) => (
+          <li key={flow.id}>{flow.id}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default MyFirstComponent;
+```
+
+### 5. Run your app
+
+```bash
+npm run dev
+```
+
+Open http://localhost:5173 and you should see your flows!
+
+### 6. Next Steps
+
+- Add a chat interface with `useConversation` and `useChatSession`
+- Query knowledge graphs with `useEntityDetail` and `useGraphSubgraph`
+- Upload documents with `useLibrary`
+- Perform vector searches with `useVectorSearch`
+
 ## Quick Start
 
 ### 1. Set up providers
@@ -151,10 +256,11 @@ const handler: NotificationHandler = {
 - `useCollections()` - Manage document collections
 - `useKnowledgeCores()` - Manage knowledge cores
 
-#### Query & Chat
+#### Chat & Inference
 
-- `useChat()` - Chat interface operations
-- `useChatQuery()` - Chat query management
+- `useConversation()` - Chat conversation state (messages, input, mode)
+- `useInference()`- Low-level LLM inference (graphRag, textCompletion, agent)
+- `useChatSession()` / `useChat()` - High-level chat session management
 - `useStructuredQuery()` - Structured query operations
 - `useObjectsQuery()` - Object queries
 - `useNlpQuery()` - Natural language processing queries
@@ -181,9 +287,10 @@ const handler: NotificationHandler = {
 
 - `useProgressStateStore()` - Activity indicators and error state
 - `useSessionStore()` - Session and flow state
-- `useChatStateStore()` - Chat message history
+- `useConversation()` - Chat conversation state (messages, input, chat mode)
 - `useWorkbenchStateStore()` - Workbench UI state (selected entity, tool, etc.)
 - `useLoadStateStore()` - Document loading state
+- `useSearchStateStore()` - Search results state
 
 ### Utility Hooks
 
@@ -195,9 +302,10 @@ const handler: NotificationHandler = {
 ### Managing Documents
 
 ```typescript
-import { useLibrary } from "@trustgraph/react-state";
+import { useLibrary, useSettings } from "@trustgraph/react-state";
 
 function DocumentManager() {
+  const { settings } = useSettings();
   const {
     documents,
     isLoading,
@@ -218,7 +326,17 @@ function DocumentManager() {
       files,
       params: { title: "My Document", keywords: [] },
       mimeType: "application/pdf",
-      user: "current-user",
+      onSuccess: () => console.log("Uploaded successfully"),
+    });
+  };
+
+  const handleSubmit = (ids: string[]) => {
+    submitDocuments({
+      ids,
+      flow: "my-flow",
+      tags: ["important"],
+      collection: settings.collection,
+      onSuccess: () => console.log("Submitted for processing"),
     });
   };
 
@@ -260,6 +378,95 @@ function SettingsPanel() {
 }
 ```
 
+### Chat Interface (3-Hook Architecture)
+
+The chat system is split into three composable hooks:
+
+```typescript
+import { useConversation, useInference, useChatSession, useSettings } from "@trustgraph/react-state";
+
+// Option 1: High-level chat (easiest)
+function SimpleChatUI() {
+  const messages = useConversation((state) => state.messages);
+  const input = useConversation((state) => state.input);
+  const setInput = useConversation((state) => state.setInput);
+  const { submitMessage, isSubmitting } = useChatSession();
+
+  return (
+    <div>
+      {messages.map((msg, i) => (
+        <div key={i}>{msg.role}: {msg.text}</div>
+      ))}
+      <input value={input} onChange={(e) => setInput(e.target.value)} />
+      <button onClick={() => submitMessage({ input })} disabled={isSubmitting}>
+        Send
+      </button>
+    </div>
+  );
+}
+
+// Option 2: Low-level inference (for custom UIs)
+function CustomInferenceUI() {
+  const { settings } = useSettings();
+  const inference = useInference();
+  const [result, setResult] = useState("");
+
+  const handleQuery = async () => {
+    const response = await inference.graphRag({
+      input: "What is TrustGraph?",
+      options: {
+        entityLimit: 10,
+        tripleLimit: 10,
+      },
+      collection: settings.collection,
+    });
+    setResult(response.response);
+  };
+
+  return (
+    <div>
+      <button onClick={handleQuery}>Query</button>
+      <div>{result}</div>
+    </div>
+  );
+}
+```
+
+### Multi-Collection Apps
+
+Query multiple collections side-by-side:
+
+```typescript
+import { useEntityDetail, useSessionStore, useSettings } from "@trustgraph/react-state";
+
+function MultiCollectionView({ entityUri }: { entityUri: string }) {
+  const flowId = useSessionStore((state) => state.flowId);
+  const { settings } = useSettings();
+
+  // Query same entity from different collections
+  const prodData = useEntityDetail(entityUri, flowId, "production");
+  const stagingData = useEntityDetail(entityUri, flowId, "staging");
+  const defaultData = useEntityDetail(entityUri, flowId, settings.collection);
+
+  return (
+    <div>
+      <div>
+        <h3>Production</h3>
+        {prodData.detail?.triples.length} triples
+      </div>
+      <div>
+        <h3>Staging</h3>
+        {stagingData.detail?.triples.length} triples
+      </div>
+      <div>
+        <h3>Default ({settings.collection})</h3>
+        {defaultData.detail?.triples.length} triples
+      </div>
+    </div>
+  );
+}
+```
+
 ### Using Progress Indicators
 
 ```typescript
@@ -279,6 +486,126 @@ function MyComponent() {
       {activities.size > 0 && (
         <div>Active: {Array.from(activities).join(", ")}</div>
       )}
+    </div>
+  );
+}
+```
+
+## Common Patterns
+
+### Handling Settings Loading State
+
+Settings are loaded asynchronously. Always check `isLoaded` before accessing settings values:
+
+```typescript
+import { useSettings, useEntityDetail } from "@trustgraph/react-state";
+
+function EntityView({ entityUri }: { entityUri: string }) {
+  const { settings, isLoaded } = useSettings();
+  const flowId = useSessionStore((state) => state.flowId);
+
+  // Wait for settings to load before querying
+  const { detail } = useEntityDetail(
+    entityUri,
+    flowId,
+    settings?.collection || "default"
+  );
+
+  if (!isLoaded) {
+    return <div>Loading settings...</div>;
+  }
+
+  return <div>{detail?.triples.length} triples</div>;
+}
+```
+
+### Using Default Collection from Settings
+
+Most hooks require an explicit `collection` parameter. Use settings as the default source:
+
+```typescript
+import { useSettings, useLibrary } from "@trustgraph/react-state";
+
+function DocumentSubmit() {
+  const { settings } = useSettings();
+  const library = useLibrary();
+
+  const handleSubmit = (ids: string[], flow: string) => {
+    library.submitDocuments({
+      ids,
+      flow,
+      tags: ["important"],
+      collection: settings?.collection || "default", // Use settings with fallback
+      onSuccess: () => console.log("Submitted"),
+    });
+  };
+
+  return <button onClick={() => handleSubmit(["doc1"], "flow1")}>Submit</button>;
+}
+```
+
+### Querying Multiple Collections
+
+Override the default collection to query multiple collections side-by-side:
+
+```typescript
+import { useEntityDetail, useSettings } from "@trustgraph/react-state";
+
+function MultiCollectionComparison({ entityUri }: { entityUri: string }) {
+  const { settings } = useSettings();
+  const flowId = useSessionStore((state) => state.flowId);
+
+  // Query same entity from different collections
+  const prod = useEntityDetail(entityUri, flowId, "production");
+  const staging = useEntityDetail(entityUri, flowId, "staging");
+  const defaultData = useEntityDetail(entityUri, flowId, settings?.collection || "default");
+
+  return (
+    <div>
+      <h3>Production: {prod.detail?.triples.length} triples</h3>
+      <h3>Staging: {staging.detail?.triples.length} triples</h3>
+      <h3>Default: {defaultData.detail?.triples.length} triples</h3>
+    </div>
+  );
+}
+```
+
+### Composing Inference and Conversation Hooks
+
+For custom chat UIs, compose the low-level hooks directly:
+
+```typescript
+import { useConversation, useInference, useSettings } from "@trustgraph/react-state";
+
+function CustomChatUI() {
+  const messages = useConversation((state) => state.messages);
+  const input = useConversation((state) => state.input);
+  const setInput = useConversation((state) => state.setInput);
+  const addMessage = useConversation((state) => state.addMessage);
+
+  const { settings } = useSettings();
+  const inference = useInference();
+
+  const handleSubmit = async () => {
+    addMessage("user", input);
+    setInput("");
+
+    const result = await inference.graphRag({
+      input,
+      options: { entityLimit: 10, tripleLimit: 10 },
+      collection: settings?.collection || "default",
+    });
+
+    addMessage("ai", result.response);
+  };
+
+  return (
+    <div>
+      {messages.map((msg, i) => (
+        <div key={i}>{msg.role}: {msg.text}</div>
+      ))}
+      <input value={input} onChange={(e) => setInput(e.target.value)} />
+      <button onClick={handleSubmit}>Send</button>
     </div>
   );
 }

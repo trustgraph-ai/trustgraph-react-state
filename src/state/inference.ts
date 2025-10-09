@@ -41,7 +41,7 @@ export const useInference = () => {
     }: {
       input: string;
       options?: GraphRagOptions;
-      collection?: string;
+      collection: string;
     }): Promise<GraphRagResult> => {
       // Execute Graph RAG request
       const response = await socket.flow(flowId).graphRag(

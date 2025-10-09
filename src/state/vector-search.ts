@@ -3,7 +3,6 @@ import { useState } from "react";
 
 import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
-import { useSettings } from "./settings";
 import { vectorSearch } from "../utils/vector-search";
 import { useProgressStateStore } from "./progress";
 
@@ -26,9 +25,6 @@ export const useVectorSearch = () => {
   // Hook for displaying user notifications
   const notify = useNotification();
 
-  // Hook for accessing user settings
-  const { settings } = useSettings();
-
   // State to track current search parameters
   const [searchParams, setSearchParams] = useState(null);
 
@@ -37,17 +33,17 @@ export const useVectorSearch = () => {
    * Uses React Query for caching and background refetching
    */
   const searchQuery = useQuery({
-    queryKey: ["search", searchParams, settings.collection],
+    queryKey: ["search", searchParams],
     enabled: !!searchParams?.term,
     queryFn: () => {
-      const { flow, term, limit } = searchParams;
+      const { flow, term, limit, collection } = searchParams;
       return vectorSearch(
         socket,
         flow || "default",
         addActivity,
         removeActivity,
         term,
-        settings.collection,
+        collection,
         limit
       )
         .then((x) => {
@@ -66,12 +62,12 @@ export const useVectorSearch = () => {
   });
 
   // Function to trigger a new search
-  const startSearch = ({ flow, term, limit }) => {
+  const startSearch = ({ flow, term, limit, collection }) => {
     if (!term) {
       setSearchParams(null);
       return;
     }
-    setSearchParams({ flow: flow || "default", term, limit: limit || 10 });
+    setSearchParams({ flow: flow || "default", term, limit: limit || 10, collection });
   };
 
   // Return vector search state and operations for use in components

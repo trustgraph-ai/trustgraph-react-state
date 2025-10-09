@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
-import { useSettings } from "./settings";
 import { getTriples } from "../utils/knowledge-graph";
 import { useProgressStateStore } from "./progress";
 
@@ -12,11 +11,13 @@ import { useProgressStateStore } from "./progress";
  * Provides functionality for fetching entity details and related triples
  * @param entityUri - The URI of the entity to fetch details for
  * @param flowId - The flow ID to use for the query
+ * @param collection - The collection to query
  * @returns {Object} Entity detail state and operations
  */
 export const useEntityDetail = (
   entityUri: string | undefined,
-  flowId: string
+  flowId: string,
+  collection: string
 ) => {
   // WebSocket connection for communicating with the graph service
   const socket = useSocket();
@@ -30,15 +31,12 @@ export const useEntityDetail = (
   // Hook for displaying user notifications
   const notify = useNotification();
 
-  // Hook for accessing user settings
-  const { settings } = useSettings();
-
   /**
    * Query for fetching entity details
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["entity-detail", { entityUri, flowId }],
+    queryKey: ["entity-detail", { entityUri, flowId, collection }],
     queryFn: async () => {
       if (!entityUri) {
         throw new Error("Entity URI is required");
@@ -52,7 +50,7 @@ export const useEntityDetail = (
         addActivity,
         removeActivity,
         undefined,
-        settings.collection
+        collection
       );
     },
     // Only run query if both entityUri and flowId are available

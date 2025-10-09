@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from "uuid";
 import { useSocket, useConnectionState } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
-import { useSettings } from "./settings";
 import { fileToBase64, textToBase64 } from "../utils/document-encoding";
 import { prepareMetadata, createDocId } from "../model/document-metadata";
 
@@ -25,9 +24,6 @@ export const useLibrary = () => {
 
   // Hook for displaying user notifications
   const notify = useNotification();
-
-  // Hook for accessing user settings
-  const { settings } = useSettings();
 
   // Only enable queries when socket is connected and ready
   const isSocketReady =
@@ -78,11 +74,7 @@ export const useLibrary = () => {
    * Creates processing entries for each document with specified flow and tags
    */
   const submitDocumentsMutation = useMutation({
-    mutationFn: ({ ids, flow, tags, onSuccess }) => {
-      // Use settings for user and collection values
-      const user = settings.user;
-      const collection = settings.collection;
-
+    mutationFn: ({ ids, flow, tags, collection, onSuccess }) => {
       // Create processing entries for each document
       return Promise.all(
         ids.map((id) => {
@@ -90,7 +82,7 @@ export const useLibrary = () => {
           const proc_id = uuidv4();
           return socket
             .librarian()
-            .addProcessing(proc_id, id, flow, user, collection, tags);
+            .addProcessing(proc_id, id, flow, collection, tags);
         })
       ).then(() => {
         // Execute success callback if provided
@@ -114,7 +106,7 @@ export const useLibrary = () => {
    * library, but does not initiate processing.
    */
   const uploadFilesMutation = useMutation({
-    mutationFn: ({ files, params, mimeType, user, onSuccess }) => {
+    mutationFn: ({ files, params, mimeType, onSuccess }) => {
       // Create processing entries for each document
       return Promise.all(
         files.map((file) => {
@@ -129,13 +121,12 @@ export const useLibrary = () => {
                 .librarian()
                 .loadDocument(
                   enc,
-                  doc_id,
-                  meta,
                   mimeType,
                   params.title,
                   params.comments,
                   params.keywords,
-                  user
+                  doc_id,
+                  meta
                 );
             })
             .then(() => {
@@ -162,7 +153,7 @@ export const useLibrary = () => {
    * library, but does not initiate processing.
    */
   const uploadTextsMutation = useMutation({
-    mutationFn: ({ texts, params, mimeType, user, onSuccess }) => {
+    mutationFn: ({ texts, params, mimeType, onSuccess }) => {
       // Create processing entries for each document
       return Promise.all(
         texts.map((text) => {
@@ -177,13 +168,12 @@ export const useLibrary = () => {
             .librarian()
             .loadDocument(
               enc,
-              doc_id,
-              meta,
               mimeType,
               params.title,
               params.comments,
               params.keywords,
-              user
+              doc_id,
+              meta
             );
         })
       ).then(() => {

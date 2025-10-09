@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
-import { useSettings } from "./settings";
 import {
   createSubgraph,
   updateSubgraph,
@@ -17,11 +16,13 @@ import { useProgressStateStore } from "./progress";
  * Provides functionality for fetching and updating graph subgraphs
  * @param entityUri - The URI of the entity to build the graph around
  * @param flowId - The flow ID to use for the query
+ * @param collection - The collection to query
  * @returns {Object} Graph state and operations
  */
 export const useGraphSubgraph = (
   entityUri: string | undefined,
-  flowId: string
+  flowId: string,
+  collection: string
 ) => {
   // WebSocket connection for communicating with the graph service
   const socket = useSocket();
@@ -35,9 +36,6 @@ export const useGraphSubgraph = (
   // Hook for displaying user notifications
   const notify = useNotification();
 
-  // Hook for accessing user settings
-  const { settings } = useSettings();
-
   // Query client for cache management
   const queryClient = useQueryClient();
 
@@ -46,7 +44,7 @@ export const useGraphSubgraph = (
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["graph-subgraph", { entityUri, flowId }],
+    queryKey: ["graph-subgraph", { entityUri, flowId, collection }],
     queryFn: async () => {
       if (!entityUri) {
         throw new Error("Entity URI is required");
@@ -62,7 +60,7 @@ export const useGraphSubgraph = (
         sg,
         addActivity,
         removeActivity,
-        settings.collection
+        collection
       );
     },
     enabled: !!entityUri && !!flowId, // Only run query if both entityUri and flowId are available
@@ -125,7 +123,7 @@ export const useGraphSubgraph = (
         currentGraph,
         addActivity,
         removeActivity,
-        settings.collection
+        collection
       );
     },
     onSuccess: (newGraph) => {

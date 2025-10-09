@@ -4,7 +4,6 @@ import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useSocket, useConnectionState } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
-import { useSettings } from "./settings";
 
 /**
  * Collection metadata structure
@@ -35,9 +34,6 @@ export const useCollections = () => {
   // Hook for displaying user notifications
   const notify = useNotification();
 
-  // Hook for accessing user settings
-  const { settings } = useSettings();
-
   // Only enable queries when socket is connected and ready
   const isSocketReady =
     connectionState?.status === "authenticated" ||
@@ -48,10 +44,10 @@ export const useCollections = () => {
    * Uses React Query for caching and background refetching
    */
   const collectionsQuery = useQuery({
-    queryKey: ["collections", settings.user],
-    enabled: isSocketReady && !!settings.user,
+    queryKey: ["collections"],
+    enabled: isSocketReady,
     queryFn: () => {
-      return socket.collectionManagement().listCollections(settings.user);
+      return socket.collectionManagement().listCollections();
     },
   });
 
@@ -63,7 +59,7 @@ export const useCollections = () => {
     mutationFn: ({ collection, name, description, tags, onSuccess }) => {
       return socket
         .collectionManagement()
-        .updateCollection(settings.user, collection, name, description, tags)
+        .updateCollection(collection, name, description, tags)
         .then(() => {
           // Execute success callback if provided
           if (onSuccess) onSuccess();
@@ -93,7 +89,7 @@ export const useCollections = () => {
         collections.map((collection) =>
           socket
             .collectionManagement()
-            .deleteCollection(settings.user, collection)
+            .deleteCollection(collection)
         )
       ).then(() => {
         // Execute success callback if provided

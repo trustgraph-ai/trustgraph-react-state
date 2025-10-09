@@ -1,33 +1,30 @@
 import { useMutation } from "@tanstack/react-query";
-
-import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
-import { useChatStateStore } from "./chat";
+import { useConversation } from "./conversation";
+import { useInference } from "./inference";
 import { useWorkbenchStateStore } from "./workbench";
 import { useProgressStateStore } from "./progress";
-import { useSessionStore } from "./session";
 import { useSettings } from "./settings";
 import { RDFS_LABEL } from "../utils/knowledge-graph";
 import { Entity } from "../model/entity";
-import type { Triple, Value } from "@trustgraph/client";
+import { useSocket } from "@trustgraph/react-provider";
+import { useSessionStore } from "./session";
+import type { Triple } from "@trustgraph/client";
 
 /**
- * Custom hook for managing chat operations using React Query
- * Provides functionality for sending chat messages and handling responses
- * @returns {Object} Chat operations and state
+ * High-level hook for managing chat sessions
+ * Combines conversation state with inference services
+ * Handles routing, progress tracking, entity management, and notifications
  */
-export const useChat = () => {
-  // WebSocket connection for communicating with the chat service
+export const useChatSession = () => {
   const socket = useSocket();
-
-  // Hook for displaying user notifications
   const notify = useNotification();
 
-  // Chat state management
-  const addMessage = useChatStateStore((state) => state.addMessage);
-  const setInput = useChatStateStore((state) => state.setInput);
-  const chatMode = useChatStateStore((state) => state.chatMode);
+  // Conversation state
+  const addMessage = useConversation((state) => state.addMessage);
+  const setInput = useConversation((state) => state.setInput);
+  const chatMode = useConversation((state) => state.chatMode);
 
   // Progress and activity management
   const addActivity = useProgressStateStore((state) => state.addActivity);
@@ -42,48 +39,39 @@ export const useChat = () => {
   // Settings for GraphRAG configuration
   const { settings } = useSettings();
 
+  // Inference services
+  const inference = useInference();
+
   /**
-   * Graph RAG chat handling
+   * Graph RAG chat handling with entity discovery
    */
   const handleGraphRag = async (input: string) => {
     const ragActivity = "Graph RAG: " + input;
     const embActivity = "Find entities: " + input;
 
-    // Start Graph RAG activity
     addActivity(ragActivity);
 
     try {
-      // Execute Graph RAG request with settings
-      const ragResponse = await socket.flow(flowId).graphRag(
+      // Execute Graph RAG with entity discovery
+      const result = await inference.graphRag({
         input,
-        {
+        options: {
           entityLimit: settings.graphrag.entityLimit,
           tripleLimit: settings.graphrag.tripleLimit,
           maxSubgraphSize: settings.graphrag.maxSubgraphSize,
           pathLength: settings.graphrag.pathLength,
         },
-        settings.collection
-      );
-      addMessage("ai", ragResponse);
+        collection: settings.collection,
+      });
+
+      addMessage("ai", result.response);
       removeActivity(ragActivity);
 
       // Start embeddings activity
       addActivity(embActivity);
 
-      // Get embeddings for the input
-      const embeddings = await socket.flow(flowId).embeddings(input);
-
-      // Query graph embeddings to find entities using settings
-      const entities = await socket
-        .flow(flowId)
-        .graphEmbeddingsQuery(
-          embeddings,
-          settings.graphrag.entityLimit,
-          settings.collection
-        );
-
       // Get labels for each entity
-      const labelPromises = entities.map(async (entity: Value) => {
+      const labelPromises = result.entities.map(async (entity) => {
         const labelActivity = "Label " + entity.v;
         addActivity(labelActivity);
 
@@ -118,9 +106,8 @@ export const useChat = () => {
       setEntities(entityList);
       removeActivity(embActivity);
 
-      return ragResponse;
+      return result.response;
     } catch (error) {
-      // Clean up activities on error
       removeActivity(ragActivity);
       removeActivity(embActivity);
       throw error;
@@ -135,17 +122,14 @@ export const useChat = () => {
     addActivity(activity);
 
     try {
-      // Use a simple system prompt for basic LLM
-      const response = await socket
-        .flow(flowId)
-        .textCompletion(
+      const response = await inference.textCompletion({
+        systemPrompt:
           "You are a helpful assistant. Provide clear and concise responses.",
-          input
-        );
+        input,
+      });
+
       addMessage("ai", response);
       removeActivity(activity);
-
-      // Clear entities for basic LLM mode
       setEntities([]);
 
       return response;
@@ -162,35 +146,29 @@ export const useChat = () => {
     const activity = "Agent: " + input;
     addActivity(activity);
 
-    return new Promise<string>((resolve, reject) => {
-      const think = (thought: string) => {
-        addMessage("ai", thought, "thinking");
-      };
+    try {
+      const response = await inference.agent({
+        input,
+        callbacks: {
+          onThink: (thought) => addMessage("ai", thought, "thinking"),
+          onObserve: (observation) =>
+            addMessage("ai", observation, "observation"),
+          onAnswer: (answer) => addMessage("ai", answer, "answer"),
+        },
+      });
 
-      const observe = (observation: string) => {
-        addMessage("ai", observation, "observation");
-      };
+      removeActivity(activity);
+      setEntities([]);
 
-      const answer = (response: string) => {
-        addMessage("ai", response, "answer");
-        removeActivity(activity);
-        setEntities([]);
-        resolve(response);
-      };
-
-      const error = (errorMsg: string) => {
-        addMessage("ai", errorMsg);
-        removeActivity(activity);
-        reject(new Error(errorMsg));
-      };
-
-      // Call the agent API with streaming callbacks
-      socket.flow(flowId).agent(input, think, observe, answer, error);
-    });
+      return response;
+    } catch (error) {
+      removeActivity(activity);
+      throw error;
+    }
   };
 
   /**
-   * Mutation for sending chat messages and routing to appropriate handler
+   * Main chat mutation handling message submission
    */
   const chatMutation = useMutation({
     mutationFn: async ({ input }: { input: string }) => {
@@ -240,11 +218,12 @@ export const useChat = () => {
   // Show loading indicator for chat operations
   useActivity(chatMutation.isPending, "Processing chat message");
 
-  // Return chat operations for use in components
   return {
-    // Chat submission
     submitMessage: chatMutation.mutate,
     isSubmitting: chatMutation.isPending,
     submitError: chatMutation.error,
   };
 };
+
+// Re-export as useChat for convenience
+export const useChat = useChatSession;

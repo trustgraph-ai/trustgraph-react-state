@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useChatStateStore } from "../chat";
+import { useConversation } from "../conversation";
 
-describe("useChatStateStore", () => {
+describe("useConversation", () => {
   beforeEach(() => {
     // Reset the store before each test
-    useChatStateStore.getState().setMessages([
+    useConversation.getState().setMessages([
       {
         role: "ai",
         text: "Welcome to the TrustGraph Test Suite. Use the chat interface to perform Graph RAG requests.",
       },
     ]);
-    useChatStateStore.getState().setInput("");
-    useChatStateStore.getState().setChatMode("graph-rag");
+    useConversation.getState().setInput("");
+    useConversation.getState().setChatMode("graph-rag");
   });
 
   it("should initialize with default values", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     expect(result.current.messages).toHaveLength(1);
     expect(result.current.messages[0]).toEqual({
@@ -28,7 +28,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should set messages", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     const newMessages = [
       { role: "user", text: "Hello" },
@@ -43,7 +43,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should add message with default type", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.addMessage("user", "Test message");
@@ -58,7 +58,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should add message with specific type", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.addMessage("ai", "Thinking...", "thinking");
@@ -73,7 +73,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should add multiple messages in sequence", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.addMessage("user", "First message");
@@ -88,7 +88,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should set input value", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.setInput("Test input");
@@ -98,7 +98,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should update input value", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.setInput("Initial input");
@@ -112,7 +112,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should set chat mode", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.setChatMode("agent");
@@ -122,7 +122,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should change chat mode from graph-rag to basic-llm", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     expect(result.current.chatMode).toBe("graph-rag");
 
@@ -134,7 +134,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should handle all message types", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     const messageTypes = [
       "normal",
@@ -157,7 +157,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should handle empty message text", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     act(() => {
       result.current.addMessage("user", "");
@@ -168,7 +168,7 @@ describe("useChatStateStore", () => {
   });
 
   it("should preserve message order", () => {
-    const { result } = renderHook(() => useChatStateStore());
+    const { result } = renderHook(() => useConversation());
 
     const messages = [
       { role: "user", text: "Question 1" },

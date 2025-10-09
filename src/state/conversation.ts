@@ -3,7 +3,7 @@ import { Message } from "../model/message";
 
 export type ChatMode = "graph-rag" | "agent" | "basic-llm";
 
-export interface ChatState {
+export interface ConversationState {
   messages: Message[];
   input: string;
   chatMode: ChatMode;
@@ -18,7 +18,7 @@ export interface ChatState {
   setChatMode: (mode: ChatMode) => void;
 }
 
-export const useChatStateStore = create<ChatState>()((set) => ({
+export const useConversation = create<ConversationState>()((set) => ({
   messages: [
     {
       role: "ai",

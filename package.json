@@ -1,6 +1,6 @@
 {
   "name": "@trustgraph/react-state",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React state management hooks for TrustGraph applications",
   "type": "module",
   "main": "dist/index.cjs",

@@ -41,7 +41,43 @@ npm install @tanstack/react-query zustand
 # Install a toast/notification library (optional, we'll use console for this example)
 ```
 
-### 3. Set up the provider wrapper
+### 3. Configure WebSocket proxy
+
+The TrustGraph client connects to `ws://HOSTNAME:PORT/api/socket` in your application's address space. You need to proxy this to the TrustGraph API gateway (typically port 8088, path `/api/v1/socket`).
+
+For Vite, create or update `vite.config.ts`:
+
+```typescript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/api/socket": {
+        target: "ws://localhost:8088",
+        ws: true,
+        rewrite: (path) => path.replace(/^\/api\/socket/, "/api/v1/socket"),
+      },
+    },
+  },
+});
+```
+
+**For production deployments**, configure your web server (nginx, Apache, etc.) to proxy `/api/socket` to your TrustGraph API gateway:
+
+```nginx
+# nginx example
+location /api/socket {
+    proxy_pass http://trustgraph-api:8088/api/v1/socket;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+```
+
+### 4. Set up the provider wrapper
 
 Create or update `src/App.tsx`:
 
@@ -76,7 +112,7 @@ function App() {
 export default App;
 ```
 
-### 4. Create your first component
+### 5. Create your first component
 
 Create `src/MyFirstComponent.tsx`:
 
@@ -107,7 +143,7 @@ function MyFirstComponent() {
 export default MyFirstComponent;
 ```
 
-### 5. Run your app
+### 6. Run your app
 
 ```bash
 npm run dev
@@ -115,7 +151,7 @@ npm run dev
 
 Open http://localhost:5173 and you should see your flows!
 
-### 6. Next Steps
+### 7. Next Steps
 
 - Add a chat interface with `useConversation` and `useChatSession`
 - Query knowledge graphs with `useEntityDetail` and `useGraphSubgraph`

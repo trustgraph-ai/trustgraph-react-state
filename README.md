@@ -32,6 +32,9 @@ cd my-trustgraph-app
 ### 2. Install TrustGraph dependencies
 
 ```bash
+# Vite scaffolds with React 19, but TrustGraph currently uses React 18
+npm install react@^18.0.0 react-dom@^18.0.0
+
 # Install TrustGraph packages
 npm install @trustgraph/react-state @trustgraph/react-provider @trustgraph/client
 

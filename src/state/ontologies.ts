@@ -14,6 +14,7 @@ export interface OntologyMetadata {
   creator: string;
   namespace: string;
   imports?: string[];
+  namespaces?: Record<string, string>;
 }
 
 export interface OWLClass {

@@ -89,7 +89,7 @@ export const useGraphSubgraph = (
     onSuccess: (newGraph) => {
       // Update the cache with the new graph data
       queryClient.setQueryData(
-        ["graph-subgraph", { entityUri, flowId }],
+        ["graph-subgraph", { entityUri, flowId, collection }],
         newGraph
       );
     },
@@ -129,7 +129,7 @@ export const useGraphSubgraph = (
     onSuccess: (newGraph) => {
       // Update the cache with the new graph data
       queryClient.setQueryData(
-        ["graph-subgraph", { entityUri, flowId }],
+        ["graph-subgraph", { entityUri, flowId, collection }],
         newGraph
       );
     },

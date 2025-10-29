@@ -7,7 +7,12 @@ export {
 export type { SocketProviderProps } from "@trustgraph/react-provider";
 
 // Re-export commonly used types from client
-export type { BaseApi, Triple, Value, ConnectionState } from "@trustgraph/client";
+export type {
+  BaseApi,
+  Triple,
+  Value,
+  ConnectionState,
+} from "@trustgraph/client";
 
 // Provider and types
 export { NotificationProvider } from "./NotificationProvider";
@@ -42,7 +47,11 @@ export { useGraphEmbeddings } from "./state/graph-embeddings";
 export { useVectorSearch } from "./state/vector-search";
 export { useEntityDetail } from "./state/entity-query";
 export { useInference } from "./state/inference";
-export type { GraphRagOptions, GraphRagResult, AgentCallbacks } from "./state/inference";
+export type {
+  GraphRagOptions,
+  GraphRagResult,
+  AgentCallbacks,
+} from "./state/inference";
 export { useChatSession, useChat } from "./state/chat-session";
 export { useStructuredQuery } from "./state/structured-query";
 export { useObjectsQuery } from "./state/objects-query";

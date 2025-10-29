@@ -87,9 +87,7 @@ export const useCollections = () => {
       // Execute deletion requests in parallel for all collection IDs
       return Promise.all(
         collections.map((collection) =>
-          socket
-            .collectionManagement()
-            .deleteCollection(collection)
+          socket.collectionManagement().deleteCollection(collection)
         )
       ).then(() => {
         // Execute success callback if provided

@@ -44,11 +44,9 @@ export const useInference = () => {
       collection: string;
     }): Promise<GraphRagResult> => {
       // Execute Graph RAG request
-      const response = await socket.flow(flowId).graphRag(
-        input,
-        options || {},
-        collection
-      );
+      const response = await socket
+        .flow(flowId)
+        .graphRag(input, options || {}, collection);
 
       // Get embeddings for entity discovery
       const embeddings = await socket.flow(flowId).embeddings(input);
@@ -111,7 +109,9 @@ export const useInference = () => {
           reject(new Error(error));
         };
 
-        socket.flow(flowId).agent(input, onThink, onObserve, onAnswer, onError);
+        socket
+          .flow(flowId)
+          .agent(input, onThink, onObserve, onAnswer, onError);
       });
     },
   });

@@ -67,7 +67,12 @@ export const useVectorSearch = () => {
       setSearchParams(null);
       return;
     }
-    setSearchParams({ flow: flow || "default", term, limit: limit || 10, collection });
+    setSearchParams({
+      flow: flow || "default",
+      term,
+      limit: limit || 10,
+      collection,
+    });
   };
 
   // Return vector search state and operations for use in components

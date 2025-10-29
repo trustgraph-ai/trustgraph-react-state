@@ -19,6 +19,7 @@ export default {
   external: [
     "react",
     "react-dom",
+    "react/jsx-runtime",
     "@trustgraph/client",
     "@trustgraph/react-provider",
     "@tanstack/react-query",

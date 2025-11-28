@@ -1,7 +1,7 @@
-import similarity from "compute-cosine-similarity";
-
 import { Value, FlowApi } from "@trustgraph/client";
 import { RDFS_LABEL, SKOS_DEFINITION } from "./knowledge-graph";
+// @ts-ignore - compute-cosine-similarity is a CommonJS module with no types
+import similarity from "compute-cosine-similarity";
 
 export interface Row {
   uri: string;

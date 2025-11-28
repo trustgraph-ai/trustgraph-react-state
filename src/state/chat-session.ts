@@ -23,6 +23,7 @@ export const useChatSession = () => {
 
   // Conversation state
   const addMessage = useConversation((state) => state.addMessage);
+  const updateLastMessage = useConversation((state) => state.updateLastMessage);
   const setInput = useConversation((state) => state.setInput);
   const chatMode = useConversation((state) => state.chatMode);
 
@@ -51,8 +52,11 @@ export const useChatSession = () => {
 
     addActivity(ragActivity);
 
+    let accumulated = "";
+    let messageAdded = false;
+
     try {
-      // Execute Graph RAG with entity discovery
+      // Execute Graph RAG with streaming and entity discovery
       const result = await inference.graphRag({
         input,
         options: {
@@ -62,9 +66,22 @@ export const useChatSession = () => {
           pathLength: settings.graphrag.pathLength,
         },
         collection: settings.collection,
+        callbacks: {
+          onChunk: (chunk, complete) => {
+            accumulated += chunk;
+
+            if (!messageAdded) {
+              // Add empty message on first chunk
+              addMessage("ai", accumulated);
+              messageAdded = true;
+            } else {
+              // Update existing message with accumulated text
+              updateLastMessage(accumulated);
+            }
+          },
+        },
       });
 
-      addMessage("ai", result.response);
       removeActivity(ragActivity);
 
       // Start embeddings activity
@@ -121,14 +138,30 @@ export const useChatSession = () => {
     const activity = "Text completion: " + input;
     addActivity(activity);
 
+    let accumulated = "";
+    let messageAdded = false;
+
     try {
       const response = await inference.textCompletion({
         systemPrompt:
           "You are a helpful assistant. Provide clear and concise responses.",
         input,
+        callbacks: {
+          onChunk: (chunk, complete) => {
+            accumulated += chunk;
+
+            if (!messageAdded) {
+              // Add empty message on first chunk
+              addMessage("ai", accumulated);
+              messageAdded = true;
+            } else {
+              // Update existing message with accumulated text
+              updateLastMessage(accumulated);
+            }
+          },
+        },
       });
 
-      addMessage("ai", response);
       removeActivity(activity);
       setEntities([]);
 
@@ -146,14 +179,52 @@ export const useChatSession = () => {
     const activity = "Agent: " + input;
     addActivity(activity);
 
+    let thinkingAccumulated = "";
+    let thinkingMessageAdded = false;
+    let observationAccumulated = "";
+    let observationMessageAdded = false;
+    let answerAccumulated = "";
+    let answerMessageAdded = false;
+
     try {
       const response = await inference.agent({
         input,
         callbacks: {
-          onThink: (thought) => addMessage("ai", thought, "thinking"),
-          onObserve: (observation) =>
-            addMessage("ai", observation, "observation"),
-          onAnswer: (answer) => addMessage("ai", answer, "answer"),
+          onThink: (thought, complete) => {
+            thinkingAccumulated += thought;
+            if (!thinkingMessageAdded) {
+              addMessage("ai", thinkingAccumulated, "thinking");
+              thinkingMessageAdded = true;
+            } else {
+              updateLastMessage(thinkingAccumulated);
+            }
+            if (complete) {
+              thinkingAccumulated = "";
+              thinkingMessageAdded = false;
+            }
+          },
+          onObserve: (observation, complete) => {
+            observationAccumulated += observation;
+            if (!observationMessageAdded) {
+              addMessage("ai", observationAccumulated, "observation");
+              observationMessageAdded = true;
+            } else {
+              updateLastMessage(observationAccumulated);
+            }
+            if (complete) {
+              observationAccumulated = "";
+              observationMessageAdded = false;
+            }
+          },
+          onAnswer: (answer, complete) => {
+            answerAccumulated += answer;
+            if (!answerMessageAdded) {
+              addMessage("ai", answerAccumulated, "answer");
+              answerMessageAdded = true;
+            } else {
+              updateLastMessage(answerAccumulated);
+            }
+          },
         },
       });
 

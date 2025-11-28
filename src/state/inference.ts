@@ -15,10 +15,20 @@ export interface GraphRagResult {
   entities: Value[];
 }
 
+export interface GraphRagCallbacks {
+  onChunk?: (chunk: string, complete: boolean) => void;
+  onError?: (error: string) => void;
+}
+
+export interface TextCompletionCallbacks {
+  onChunk?: (chunk: string, complete: boolean) => void;
+  onError?: (error: string) => void;
+}
+
 export interface AgentCallbacks {
-  onThink?: (thought: string) => void;
-  onObserve?: (observation: string) => void;
-  onAnswer?: (answer: string) => void;
+  onThink?: (thought: string, complete?: boolean) => void;
+  onObserve?: (observation: string, complete?: boolean) => void;
+  onAnswer?: (answer: string, complete?: boolean) => void;
   onError?: (error: string) => void;
 }
 
@@ -38,15 +48,36 @@ export const useInference = () => {
       input,
       options,
       collection,
+      callbacks,
     }: {
       input: string;
       options?: GraphRagOptions;
       collection: string;
+      callbacks?: GraphRagCallbacks;
     }): Promise<GraphRagResult> => {
-      // Execute Graph RAG request
-      const response = await socket
-        .flow(flowId)
-        .graphRag(input, options || {}, collection);
+      // If callbacks provided, use streaming API
+      const response = callbacks
+        ? await new Promise<string>((resolve, reject) => {
+            let accumulated = "";
+
+            const onChunk = (chunk: string, complete: boolean) => {
+              accumulated += chunk;
+              callbacks?.onChunk?.(chunk, complete);
+              if (complete) {
+                resolve(accumulated);
+              }
+            };
+
+            const onError = (error: string) => {
+              callbacks?.onError?.(error);
+              reject(new Error(error));
+            };
+
+            socket
+              .flow(flowId)
+              .graphRagStreaming(input, onChunk, onError, options, collection);
+          })
+        : await socket.flow(flowId).graphRag(input, options || {}, collection);
 
       // Get embeddings for entity discovery
       const embeddings = await socket.flow(flowId).embeddings(input);
@@ -71,11 +102,35 @@ export const useInference = () => {
     mutationFn: async ({
       systemPrompt,
       input,
+      callbacks,
     }: {
       systemPrompt: string;
       input: string;
+      callbacks?: TextCompletionCallbacks;
     }): Promise<string> => {
-      return await socket.flow(flowId).textCompletion(systemPrompt, input);
+      // If callbacks provided, use streaming API
+      return callbacks
+        ? await new Promise<string>((resolve, reject) => {
+            let accumulated = "";
+
+            const onChunk = (chunk: string, complete: boolean) => {
+              accumulated += chunk;
+              callbacks?.onChunk?.(chunk, complete);
+              if (complete) {
+                resolve(accumulated);
+              }
+            };
+
+            const onError = (error: string) => {
+              callbacks?.onError?.(error);
+              reject(new Error(error));
+            };
+
+            socket
+              .flow(flowId)
+              .textCompletionStreaming(systemPrompt, input, onChunk, onError);
+          })
+        : await socket.flow(flowId).textCompletion(systemPrompt, input);
     },
   });
 
@@ -91,17 +146,22 @@ export const useInference = () => {
       callbacks?: AgentCallbacks;
     }): Promise<string> => {
       return new Promise<string>((resolve, reject) => {
-        const onThink = (thought: string) => {
-          callbacks?.onThink?.(thought);
+        let fullAnswer = "";
+
+        const onThink = (thought: string, complete: boolean) => {
+          callbacks?.onThink?.(thought, complete);
         };
 
-        const onObserve = (observation: string) => {
-          callbacks?.onObserve?.(observation);
+        const onObserve = (observation: string, complete: boolean) => {
+          callbacks?.onObserve?.(observation, complete);
         };
 
-        const onAnswer = (answer: string) => {
-          callbacks?.onAnswer?.(answer);
-          resolve(answer);
+        const onAnswer = (answer: string, complete: boolean) => {
+          fullAnswer += answer;
+          callbacks?.onAnswer?.(answer, complete);
+          if (complete) {
+            resolve(fullAnswer);
+          }
         };
 
         const onError = (error: string) => {

@@ -25,9 +25,14 @@ export default {
     "@tanstack/react-query",
     "zustand",
     "uuid",
+    "compute-cosine-similarity",
   ],
   plugins: [
-    resolve(),
+    resolve({
+      // Don't resolve symlinked packages - treat them as external
+      // This prevents rollup from trying to bundle npm linked dependencies
+      resolveOnly: [/^(?!@trustgraph)/],
+    }),
     commonjs(),
     typescript({
       tsconfig: "./tsconfig.json",

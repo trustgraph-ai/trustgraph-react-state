@@ -12,6 +12,7 @@ export type {
   Triple,
   Value,
   ConnectionState,
+  StreamingMetadata,
 } from "@trustgraph/client";
 
 // Provider and types
@@ -50,6 +51,8 @@ export { useInference } from "./state/inference";
 export type {
   GraphRagOptions,
   GraphRagResult,
+  GraphRagCallbacks,
+  TextCompletionCallbacks,
   AgentCallbacks,
 } from "./state/inference";
 export { useChatSession, useChat } from "./state/chat-session";

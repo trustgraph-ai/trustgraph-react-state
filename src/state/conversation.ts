@@ -14,6 +14,7 @@ export interface ConversationState {
     text: string,
     type?: "normal" | "thinking" | "observation" | "answer"
   ) => void;
+  updateLastMessage: (text: string) => void;
   setInput: (v: string) => void;
   setChatMode: (mode: ChatMode) => void;
 }
@@ -49,6 +50,17 @@ export const useConversation = create<ConversationState>()((set) => ({
         },
       ],
     })),
+
+  updateLastMessage: (text: string) =>
+    set((state) => {
+      if (state.messages.length === 0) return state;
+      const messages = [...state.messages];
+      messages[messages.length - 1] = {
+        ...messages[messages.length - 1],
+        text: text,
+      };
+      return { messages };
+    }),
 
   setInput: (v) =>
     set(() => ({

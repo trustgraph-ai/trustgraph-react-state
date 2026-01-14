@@ -17,8 +17,8 @@ export interface Settings {
     mcpTools: boolean;
     schemas: boolean;
     tokenCost: boolean;
-    flowClasses: boolean;
-    flowClassEditor: boolean;
+    flowBlueprints: boolean;
+    flowBlueprintEditor: boolean;
     structuredQuery: boolean;
     llmModels: boolean;
   };
@@ -43,8 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
     mcpTools: false, // Off by default
     schemas: false, // Off by default
     tokenCost: false, // Off by default
-    flowClasses: false, // Off by default
-    flowClassEditor: false, // Off by default - experimental feature
+    flowBlueprints: false, // Off by default
+    flowBlueprintEditor: false, // Off by default - experimental feature
     structuredQuery: false, // Off by default
     llmModels: false, // Off by default
   },

@@ -32,7 +32,7 @@ export const useTokenCosts = () => {
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["token-costs"],
+    queryKey: ["token-cost"],
     enabled: isSocketReady,
     queryFn: () => {
       return socket
@@ -59,7 +59,7 @@ export const useTokenCosts = () => {
         .config()
         .deleteConfig([
           {
-            type: "token-costs",
+            type: "token-cost",
             key: model,
           },
         ])
@@ -79,7 +79,7 @@ export const useTokenCosts = () => {
     },
     onSuccess: () => {
       // Invalidate cache to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ["token-costs"] });
+      queryClient.invalidateQueries({ queryKey: ["token-cost"] });
       // Show success notification
       notify.success("Successful deletion");
     },
@@ -90,10 +90,10 @@ export const useTokenCosts = () => {
    * Converts per-million token prices to per-token prices and saves
    * configuration
    */
-  const updateTokenCostMutation = useMutation({
+  const updateTokenCostsMutation = useMutation({
     mutationFn: ({ model, input_price, output_price, onSuccess }) => {
       // Convert per-million token prices to per-token prices
-      const tokenCost = {
+      const tokenCosts = {
         input_price: input_price / 1000000,
         output_price: output_price / 1000000,
       };
@@ -103,9 +103,9 @@ export const useTokenCosts = () => {
         .config()
         .putConfig([
           {
-            type: "token-costs",
+            type: "token-cost",
             key: model,
-            value: JSON.stringify(tokenCost),
+            value: JSON.stringify(tokenCosts),
           },
         ])
         .then((x) => {
@@ -124,7 +124,7 @@ export const useTokenCosts = () => {
     },
     onSuccess: () => {
       // Invalidate cache to refresh the token costs list
-      queryClient.invalidateQueries({ queryKey: ["token-costs"] });
+      queryClient.invalidateQueries({ queryKey: ["token-cost"] });
       notify.success("Token costs updated");
     },
   });
@@ -132,7 +132,7 @@ export const useTokenCosts = () => {
   // Show loading indicators for long-running operations
   useActivity(query.isLoading, "Loading token costs");
   useActivity(deleteTokenCostsMutation.isPending, "Deleting token costs");
-  useActivity(updateTokenCostMutation.isPending, "Updating token costs");
+  useActivity(updateTokenCostsMutation.isPending, "Updating token costs");
 
   // Return token cost state and operations for use in components
   return {
@@ -143,14 +143,14 @@ export const useTokenCosts = () => {
     error: query.error,
 
     // Token cost deletion operations
-    deleteTokenCosts: deleteTokenCostsMutation.mutate,
+    deleteTokenCost: deleteTokenCostsMutation.mutate,
     isDeleting: deleteTokenCostsMutation.isPending,
-    deleteError: deleteTokenCostsMutation.error,
+    deleteError: deleteTokenCostMutation.error,
 
     // Token cost update operations
-    updateTokenCost: updateTokenCostMutation.mutate,
-    isSubmitting: updateTokenCostMutation.isPending,
-    submitError: updateTokenCostMutation.error,
+    updateTokenCost: updateTokenCostsMutation.mutate,
+    isSubmitting: updateTokenCostsMutation.isPending,
+    submitError: updateTokenCostsMutation.error,
 
     // Manual refetch function
     refetch: query.refetch,

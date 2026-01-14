@@ -49,10 +49,10 @@ export const useTokenCosts = () => {
   });
 
   /**
-   * Mutation for deleting a specific model's token costs
+   * Mutation for deleting a specific model's token cost
    * Removes the token cost configuration for a given model
    */
-  const deleteTokenCostsMutation = useMutation({
+  const deleteTokenCostMutation = useMutation({
     mutationFn: ({ model, onSuccess }) => {
       // Delete the token cost configuration for the specified model
       return socket
@@ -86,11 +86,11 @@ export const useTokenCosts = () => {
   });
 
   /**
-   * Mutation for updating token costs for a specific model
+   * Mutation for updating token cost for a specific model
    * Converts per-million token prices to per-token prices and saves
    * configuration
    */
-  const updateTokenCostsMutation = useMutation({
+  const updateTokenCostMutation = useMutation({
     mutationFn: ({ model, input_price, output_price, onSuccess }) => {
       // Convert per-million token prices to per-token prices
       const tokenCosts = {
@@ -131,8 +131,8 @@ export const useTokenCosts = () => {
 
   // Show loading indicators for long-running operations
   useActivity(query.isLoading, "Loading token costs");
-  useActivity(deleteTokenCostsMutation.isPending, "Deleting token costs");
-  useActivity(updateTokenCostsMutation.isPending, "Updating token costs");
+  useActivity(deleteTokenCostMutation.isPending, "Deleting token cost");
+  useActivity(updateTokenCostMutation.isPending, "Updating token cost");
 
   // Return token cost state and operations for use in components
   return {
@@ -143,14 +143,14 @@ export const useTokenCosts = () => {
     error: query.error,
 
     // Token cost deletion operations
-    deleteTokenCost: deleteTokenCostsMutation.mutate,
-    isDeleting: deleteTokenCostsMutation.isPending,
+    deleteTokenCost: deleteTokenCostMutation.mutate,
+    isDeleting: deleteTokenCostMutation.isPending,
     deleteError: deleteTokenCostMutation.error,
 
     // Token cost update operations
-    updateTokenCost: updateTokenCostsMutation.mutate,
-    isSubmitting: updateTokenCostsMutation.isPending,
-    submitError: updateTokenCostsMutation.error,
+    updateTokenCost: updateTokenCostMutation.mutate,
+    isSubmitting: updateTokenCostMutation.isPending,
+    submitError: updateTokenCostMutation.error,
 
     // Manual refetch function
     refetch: query.refetch,

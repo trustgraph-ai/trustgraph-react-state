@@ -14,7 +14,25 @@ import { prepareMetadata, createDocId } from "../model/document-metadata";
  * Provides functionality for fetching, deleting, and submitting documents
  * @returns {Object} Library state and operations
  */
-export const useLibrary = () => {
+export const useLibrary = (): {
+  documents: any;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  deleteDocuments: (params: any) => void;
+  isDeleting: boolean;
+  deleteError: Error | null;
+  submitDocuments: (params: any) => void;
+  isSubmitting: boolean;
+  submitError: Error | null;
+  uploadFiles: (params: any) => void;
+  isUploadingFiles: boolean;
+  filesUploadError: Error | null;
+  uploadTexts: (params: any) => void;
+  isUploadingTexts: boolean;
+  textsUploadError: Error | null;
+  refetch: () => void;
+} => {
   // WebSocket connection for communicating with the librarian service
   const socket = useSocket();
   const connectionState = useConnectionState();

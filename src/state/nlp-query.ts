@@ -14,7 +14,19 @@ import { useSessionStore } from "./session";
  * Custom hook for managing NLP query operations
  * Provides functionality for converting natural language questions to GraphQL queries
  */
-export const useNlpQuery = () => {
+export const useNlpQuery = (): {
+  convertQuery: (params: { question: string; maxResults?: number }) => void;
+  convertQueryAsync: (params: { question: string; maxResults?: number }) => Promise<any>;
+  isConverting: boolean;
+  error: unknown;
+  data: any;
+  graphqlQuery: string | undefined;
+  variables: Record<string, unknown> | undefined;
+  detectedSchemas: Record<string, unknown>[] | undefined;
+  confidence: number | undefined;
+  reset: () => void;
+  isReady: boolean;
+} => {
   // Socket connection for API calls
   const socket = useSocket();
   const connectionState = useConnectionState();

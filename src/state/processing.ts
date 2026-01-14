@@ -8,7 +8,13 @@ import { useActivity } from "../hooks/useActivity";
  * Provides functionality for fetching, deleting, and creating processing
  * @returns {Object} Processing state and operations
  */
-export const useProcessing = () => {
+export const useProcessing = (): {
+  processing: any;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: () => void;
+} => {
   // WebSocket connection for communicating with the librarian service
   const socket = useSocket();
   const connectionState = useConnectionState();

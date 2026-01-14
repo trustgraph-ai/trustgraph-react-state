@@ -52,22 +52,22 @@ export const useFlows = () => {
   });
 
   /**
-   * Query for fetching all flow classes
+   * Query for fetching all flow blueprints
    * Uses React Query for caching and background refetching
    */
-  const flowClassesQuery = useQuery({
-    queryKey: ["flow-classes"],
+  const flowBlueprintsQuery = useQuery({
+    queryKey: ["flow-blueprints"],
     enabled: isSocketReady,
     queryFn: () => {
       return socket
         .flows()
-        .getFlowClasses()
+        .getFlowBlueprints()
         .then((cls) =>
           Promise.all(
             cls.map((id) =>
               socket
                 .flows()
-                .getFlowClass(id)
+                .getFlowBlueprint(id)
                 .then((cls) => [id, cls])
             )
           )
@@ -81,20 +81,20 @@ export const useFlows = () => {
   const startFlowMutation = useMutation({
     mutationFn: ({
       id,
-      flowClass,
+      blueprintName,
       description,
       parameters,
       onSuccess,
     }: {
       id: string;
-      flowClass: string;
+      blueprintName: string;
       description: string;
       parameters?: Record<string, unknown>;
       onSuccess?: () => void;
     }) => {
       return socket
         .flows()
-        .startFlow(id, flowClass, description, parameters)
+        .startFlow(id, blueprintName, description, parameters)
         .then(() => {
           // Execute success callback if provided
           if (onSuccess) onSuccess();
@@ -147,7 +147,7 @@ export const useFlows = () => {
 
   // Show loading indicators for long-running operations
   useActivity(flowsQuery.isLoading, "Loading flows");
-  useActivity(flowClassesQuery.isLoading, "Loading flow classes");
+  useActivity(flowBlueprintsQuery.isLoading, "Loading flow blueprints");
   useActivity(startFlowMutation.isPending, "Starting flow");
   useActivity(stopFlowMutation.isPending, "Stopping flows");
 
@@ -159,11 +159,11 @@ export const useFlows = () => {
     isError: flowsQuery.isError,
     error: flowsQuery.error,
 
-    // Flow data and query state
-    flowClasses: flowClassesQuery.data,
-    isFlowClassesLoading: flowClassesQuery.isLoading,
-    isFlowClassesError: flowClassesQuery.isError,
-    flowClassesError: flowClassesQuery.error,
+    // Flow blueprint data and query state
+    flowBlueprints: flowBlueprintsQuery.data,
+    isFlowBlueprintsLoading: flowBlueprintsQuery.isLoading,
+    isFlowBlueprintsError: flowBlueprintsQuery.isError,
+    flowBlueprintsError: flowBlueprintsQuery.error,
 
     // Flow start operations
     startFlow: startFlowMutation.mutate,

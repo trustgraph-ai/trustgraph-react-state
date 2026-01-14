@@ -39,11 +39,11 @@ interface FlowParameterMetadata {
 }
 
 /**
- * Custom hook for fetching parameter definitions for a flow class
- * @param flowClassName - The name of the flow class to fetch parameters for
+ * Custom hook for fetching parameter definitions for a flow blueprint
+ * @param flowBlueprintName - The name of the flow blueprint to fetch parameters for
  * @returns Parameter definitions, mapping, and loading states
  */
-export const useFlowParameters = (flowClassName?: string) => {
+export const useFlowParameters = (flowBlueprintName?: string) => {
   const socket = useSocket();
   const connectionState = useConnectionState();
 
@@ -52,21 +52,21 @@ export const useFlowParameters = (flowClassName?: string) => {
     connectionState?.status === "unauthenticated";
 
   /**
-   * Query for fetching parameter definitions for a flow class
+   * Query for fetching parameter definitions for a flow blueprint
    */
   const parametersQuery = useQuery({
-    queryKey: ["flow-parameters", flowClassName],
-    enabled: isSocketReady && !!flowClassName,
+    queryKey: ["flow-parameters", flowBlueprintName],
+    enabled: isSocketReady && !!flowBlueprintName,
     queryFn: async () => {
-      if (!flowClassName) return null;
+      if (!flowBlueprintName) return null;
 
       try {
-        // Get flow class definition first
-        const flowClass = await socket.flows().getFlowClass(flowClassName);
+        // Get flow blueprint definition first
+        const flowBlueprint = await socket.flows().getFlowBlueprint(flowBlueprintName);
 
         // Extract parameter metadata with new structure
         const parameterMetadata: { [key: string]: FlowParameterMetadata } =
-          flowClass.parameters || {};
+          flowBlueprint.parameters || {};
         if (Object.keys(parameterMetadata).length === 0) {
           return {
             parameterDefinitions: {},
@@ -86,7 +86,7 @@ export const useFlowParameters = (flowClassName?: string) => {
         // Fetch parameter definitions from config
         const definitionNames = Object.values(parameterMapping);
         const configKeys = definitionNames.map((name) => ({
-          type: "parameter-types",
+          type: "parameter-type",
           key: name,
         }));
 
@@ -95,7 +95,7 @@ export const useFlowParameters = (flowClassName?: string) => {
 
         // Parse config response to get parameter definitions
         configResponse.values?.forEach((item) => {
-          if (item.type === "parameter-types") {
+          if (item.type === "parameter-type") {
             try {
               parameterDefinitions[item.key] = JSON.parse(item.value);
             } catch (error) {

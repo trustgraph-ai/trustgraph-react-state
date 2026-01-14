@@ -39,8 +39,8 @@ describe("useFlows hook", () => {
   let mockFlowsApi: {
     getFlows: ReturnType<typeof vi.fn>;
     getFlow: ReturnType<typeof vi.fn>;
-    getFlowClasses: ReturnType<typeof vi.fn>;
-    getFlowClass: ReturnType<typeof vi.fn>;
+    getFlowBlueprints: ReturnType<typeof vi.fn>;
+    getFlowBlueprint: ReturnType<typeof vi.fn>;
     startFlow: ReturnType<typeof vi.fn>;
     stopFlow: ReturnType<typeof vi.fn>;
   };
@@ -60,8 +60,8 @@ describe("useFlows hook", () => {
     mockFlowsApi = {
       getFlows: vi.fn(),
       getFlow: vi.fn(),
-      getFlowClasses: vi.fn(),
-      getFlowClass: vi.fn(),
+      getFlowBlueprints: vi.fn(),
+      getFlowBlueprint: vi.fn(),
       startFlow: vi.fn(),
       stopFlow: vi.fn(),
     };
@@ -129,29 +129,29 @@ describe("useFlows hook", () => {
     });
   });
 
-  describe("fetching flow classes", () => {
-    it("should fetch and return flow classes", async () => {
-      const mockClassNames = ["class1", "class2"];
-      const mockClassDetails = {
-        class1: { description: "Class 1 Description" },
-        class2: { description: "Class 2 Description" },
+  describe("fetching flow blueprints", () => {
+    it("should fetch and return flow blueprints", async () => {
+      const mockBlueprintNames = ["blueprint1", "blueprint2"];
+      const mockBlueprintDetails = {
+        blueprint1: { description: "Blueprint 1 Description" },
+        blueprint2: { description: "Blueprint 2 Description" },
       };
 
-      mockFlowsApi.getFlowClasses.mockResolvedValue(mockClassNames);
-      mockFlowsApi.getFlowClass.mockImplementation((name) =>
-        Promise.resolve(mockClassDetails[name])
+      mockFlowsApi.getFlowBlueprints.mockResolvedValue(mockBlueprintNames);
+      mockFlowsApi.getFlowBlueprint.mockImplementation((name) =>
+        Promise.resolve(mockBlueprintDetails[name])
       );
 
       const { result } = renderHook(() => useFlows(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.flowClasses).toBeDefined();
-        expect(result.current.flowClasses).toHaveLength(2);
+        expect(result.current.flowBlueprints).toBeDefined();
+        expect(result.current.flowBlueprints).toHaveLength(2);
       });
 
-      expect(result.current.flowClasses).toEqual([
-        ["class1", { description: "Class 1 Description" }],
-        ["class2", { description: "Class 2 Description" }],
+      expect(result.current.flowBlueprints).toEqual([
+        ["blueprint1", { description: "Blueprint 1 Description" }],
+        ["blueprint2", { description: "Blueprint 2 Description" }],
       ]);
     });
   });
@@ -167,7 +167,7 @@ describe("useFlows hook", () => {
 
       result.current.startFlow({
         id: "test-flow",
-        flowClass: "test-class", // This should be a string
+        blueprintName: "test-blueprint",
         description: "Test description",
         onSuccess,
       });
@@ -175,7 +175,7 @@ describe("useFlows hook", () => {
       await waitFor(() => {
         expect(mockFlowsApi.startFlow).toHaveBeenCalledWith(
           "test-flow",
-          "test-class",
+          "test-blueprint",
           "Test description",
           undefined
         );
@@ -196,7 +196,7 @@ describe("useFlows hook", () => {
 
       result.current.startFlow({
         id: "test-flow",
-        flowClass: "test-class",
+        blueprintName: "test-blueprint",
         description: "Test description",
       });
 
@@ -216,7 +216,7 @@ describe("useFlows hook", () => {
 
       result.current.startFlow({
         id: "test-flow",
-        flowClass: "test-class",
+        blueprintName: "test-blueprint",
         description: "Test description",
       });
 
@@ -319,13 +319,13 @@ describe("useFlows hook", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(mockFlowsApi.getFlows).not.toHaveBeenCalled();
-      expect(mockFlowsApi.getFlowClasses).not.toHaveBeenCalled();
+      expect(mockFlowsApi.getFlowBlueprints).not.toHaveBeenCalled();
     });
 
     it("should fetch when socket becomes ready", async () => {
       mockConnectionState.status = "connecting";
       mockFlowsApi.getFlows.mockResolvedValue([]);
-      mockFlowsApi.getFlowClasses.mockResolvedValue([]);
+      mockFlowsApi.getFlowBlueprints.mockResolvedValue([]);
 
       const { rerender } = renderHook(() => useFlows(), { wrapper });
 
@@ -339,7 +339,7 @@ describe("useFlows hook", () => {
       // Now it should fetch
       await waitFor(() => {
         expect(mockFlowsApi.getFlows).toHaveBeenCalled();
-        expect(mockFlowsApi.getFlowClasses).toHaveBeenCalled();
+        expect(mockFlowsApi.getFlowBlueprints).toHaveBeenCalled();
       });
     });
   });

@@ -18,7 +18,13 @@ export const useEntityDetail = (
   entityUri: string | undefined,
   flowId: string,
   collection: string
-) => {
+): {
+  detail: Awaited<ReturnType<typeof getTriples>> | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: () => void;
+} => {
   // WebSocket connection for communicating with the graph service
   const socket = useSocket();
 

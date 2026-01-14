@@ -32,7 +32,7 @@ export const useTokenCosts = () => {
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["token-costs"],
+    queryKey: ["token-cost"],
     enabled: isSocketReady,
     queryFn: () => {
       return socket
@@ -49,17 +49,17 @@ export const useTokenCosts = () => {
   });
 
   /**
-   * Mutation for deleting a specific model's token costs
+   * Mutation for deleting a specific model's token cost
    * Removes the token cost configuration for a given model
    */
-  const deleteTokenCostsMutation = useMutation({
+  const deleteTokenCostMutation = useMutation({
     mutationFn: ({ model, onSuccess }) => {
       // Delete the token cost configuration for the specified model
       return socket
         .config()
         .deleteConfig([
           {
-            type: "token-costs",
+            type: "token-cost",
             key: model,
           },
         ])
@@ -79,21 +79,21 @@ export const useTokenCosts = () => {
     },
     onSuccess: () => {
       // Invalidate cache to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ["token-costs"] });
+      queryClient.invalidateQueries({ queryKey: ["token-cost"] });
       // Show success notification
       notify.success("Successful deletion");
     },
   });
 
   /**
-   * Mutation for updating token costs for a specific model
+   * Mutation for updating token cost for a specific model
    * Converts per-million token prices to per-token prices and saves
    * configuration
    */
   const updateTokenCostMutation = useMutation({
     mutationFn: ({ model, input_price, output_price, onSuccess }) => {
       // Convert per-million token prices to per-token prices
-      const tokenCost = {
+      const tokenCosts = {
         input_price: input_price / 1000000,
         output_price: output_price / 1000000,
       };
@@ -103,9 +103,9 @@ export const useTokenCosts = () => {
         .config()
         .putConfig([
           {
-            type: "token-costs",
+            type: "token-cost",
             key: model,
-            value: JSON.stringify(tokenCost),
+            value: JSON.stringify(tokenCosts),
           },
         ])
         .then((x) => {
@@ -124,15 +124,15 @@ export const useTokenCosts = () => {
     },
     onSuccess: () => {
       // Invalidate cache to refresh the token costs list
-      queryClient.invalidateQueries({ queryKey: ["token-costs"] });
+      queryClient.invalidateQueries({ queryKey: ["token-cost"] });
       notify.success("Token costs updated");
     },
   });
 
   // Show loading indicators for long-running operations
   useActivity(query.isLoading, "Loading token costs");
-  useActivity(deleteTokenCostsMutation.isPending, "Deleting token costs");
-  useActivity(updateTokenCostMutation.isPending, "Updating token costs");
+  useActivity(deleteTokenCostMutation.isPending, "Deleting token cost");
+  useActivity(updateTokenCostMutation.isPending, "Updating token cost");
 
   // Return token cost state and operations for use in components
   return {
@@ -143,9 +143,9 @@ export const useTokenCosts = () => {
     error: query.error,
 
     // Token cost deletion operations
-    deleteTokenCosts: deleteTokenCostsMutation.mutate,
-    isDeleting: deleteTokenCostsMutation.isPending,
-    deleteError: deleteTokenCostsMutation.error,
+    deleteTokenCost: deleteTokenCostMutation.mutate,
+    isDeleting: deleteTokenCostMutation.isPending,
+    deleteError: deleteTokenCostMutation.error,
 
     // Token cost update operations
     updateTokenCost: updateTokenCostMutation.mutate,

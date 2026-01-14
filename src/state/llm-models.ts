@@ -22,7 +22,7 @@ export const useLLMModels = () => {
     queryFn: async () => {
       const response = await socket
         .config()
-        .getConfig([{ type: "parameter-types", key: "llm-model" }]);
+        .getConfig([{ type: "parameter-type", key: "llm-model" }]);
 
       if (!response.values || response.values.length === 0) {
         return [];
@@ -74,7 +74,7 @@ export const useLLMModels = () => {
 
       await socket.config().putConfig([
         {
-          type: "parameter-types",
+          type: "parameter-type",
           key: name,
           value: JSON.stringify(updatedDef),
         },

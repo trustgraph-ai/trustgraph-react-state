@@ -11,7 +11,18 @@ import { useSettings } from "./settings";
  * for AI models
  * @returns {Object} Token cost state and operations
  */
-export const useGraphEmbeddings = ({ flow, vecs, limit, collection }) => {
+export const useGraphEmbeddings = ({ flow, vecs, limit, collection }: {
+  flow?: string;
+  vecs: number[][];
+  limit: number;
+  collection?: string;
+}): {
+  graphEmbeddings: any;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: () => void;
+} => {
   // WebSocket connection for communicating with the configuration service
   const socket = useSocket();
 

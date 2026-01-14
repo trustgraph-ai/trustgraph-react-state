@@ -71,7 +71,7 @@ export type { Ontology, OntologyMetadata } from "./state/ontologies";
 export { useKnowledgeCores } from "./state/knowledge-cores";
 export { useTokenCosts } from "./state/token-costs";
 export { useLLMModels } from "./state/llm-models";
-export { useFlowClasses, generateFlowClassId } from "./state/flow-classes";
+export { useFlowBlueprints, generateFlowBlueprintId } from "./state/flow-blueprints";
 export {
   useFlowParameters,
   useParameterValidation,

@@ -12,7 +12,20 @@ import { useSettings } from "./settings";
  * for AI models
  * @returns {Object} Token cost state and operations
  */
-export const useTriples = ({ flow, s, p, o, limit, collection }) => {
+export const useTriples = ({ flow, s, p, o, limit, collection }: {
+  flow?: string;
+  s?: any;
+  p?: any;
+  o?: any;
+  limit: number;
+  collection?: string;
+}): {
+  triples: any;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: () => void;
+} => {
   // WebSocket connection for communicating with the configuration service
   const socket = useSocket();
 

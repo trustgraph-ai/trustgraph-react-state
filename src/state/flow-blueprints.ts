@@ -67,7 +67,7 @@ export const useFlowBlueprints = () => {
         const response = await socket.config().getConfigAll();
 
         // Handle both array and object responses
-        const config = response.config["flow-blueprints"];
+        const config = response.config["flow-blueprint"];
 
         if (Array.isArray(config)) {
           // If it's already an array, check if it's an array of [key, value] pairs

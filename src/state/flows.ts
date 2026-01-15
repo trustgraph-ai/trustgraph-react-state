@@ -56,7 +56,7 @@ export const useFlows = () => {
    * Uses React Query for caching and background refetching
    */
   const flowBlueprintsQuery = useQuery({
-    queryKey: ["flow-blueprints"],
+    queryKey: ["flows-blueprints"],
     enabled: isSocketReady,
     queryFn: () => {
       return socket

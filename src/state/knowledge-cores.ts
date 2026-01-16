@@ -76,13 +76,13 @@ export const useKnowledgeCores = () => {
 
   /**
    * Mutation for loading multiple knowledge cores
-   * Executes parallel load requests with specified flow
+   * Executes parallel load requests with specified flow and collection
    */
   const loadKnowledgeCoresMutation = useMutation({
-    mutationFn: ({ ids, flow, onSuccess }) => {
+    mutationFn: ({ ids, flow, collection, onSuccess }) => {
       // Execute load requests in parallel for all knowledge cores
       return Promise.all(
-        ids.map((id) => socket.knowledge().loadKgCore(id, flow))
+        ids.map((id) => socket.knowledge().loadKgCore(id, flow, collection))
       ).then(() => {
         // Execute success callback if provided
         if (onSuccess) onSuccess();

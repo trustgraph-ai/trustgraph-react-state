@@ -1,7 +1,17 @@
 import { FlowApi, Triple, Term, IriTerm, LiteralTerm } from "@trustgraph/client";
 
+// Extended types for Terms and Triples with labels (used for display purposes)
+export type LabeledTerm = Term & { label?: string };
+
+export interface LabeledTriple {
+  s: LabeledTerm;
+  p: LabeledTerm;
+  o: LabeledTerm;
+  g?: string;
+}
+
 // Helper to get the string value from a Term (IRI or Literal)
-const getTermValue = (term: Term): string => {
+export const getTermValue = (term: Term): string => {
   if (term.t === "i") return (term as IriTerm).i;
   if (term.t === "l") return (term as LiteralTerm).v;
   if (term.t === "b") return term.d;
@@ -211,11 +221,11 @@ export const queryLabel = (
 // Returns a promise
 export const labelS = (
   socket: FlowApi,
-  triples: Triple[],
+  triples: Triple[] | LabeledTriple[],
   add: (s: string) => void,
   remove: (s: string) => void,
   collection?: string
-): Promise<Triple[]> => {
+): Promise<LabeledTriple[]> => {
   return Promise.all(
     triples.map((t) => {
       return queryLabel(socket, getTermValue(t.s), add, remove, collection).then(
@@ -225,7 +235,7 @@ export const labelS = (
             s: {
               ...t.s,
               label: label,
-            } as Term,
+            } as LabeledTerm,
           };
         }
       );
@@ -237,11 +247,11 @@ export const labelS = (
 // Returns a promise
 export const labelP = (
   socket: FlowApi,
-  triples: Triple[],
+  triples: Triple[] | LabeledTriple[],
   add: (s: string) => void,
   remove: (s: string) => void,
   collection?: string
-): Promise<Triple[]> => {
+): Promise<LabeledTriple[]> => {
   return Promise.all(
     triples.map((t) => {
       return queryLabel(socket, getTermValue(t.p), add, remove, collection).then(
@@ -251,7 +261,7 @@ export const labelP = (
             p: {
               ...t.p,
               label: label,
-            } as Term,
+            } as LabeledTerm,
           };
         }
       );
@@ -263,11 +273,11 @@ export const labelP = (
 // Returns a promise
 export const labelO = (
   socket: FlowApi,
-  triples: Triple[],
+  triples: Triple[] | LabeledTriple[],
   add: (s: string) => void,
   remove: (s: string) => void,
   collection?: string
-): Promise<Triple[]> => {
+): Promise<LabeledTriple[]> => {
   return Promise.all(
     triples.map((t) => {
       // If the 'o' element is an IRI, do a label lookup, else
@@ -280,18 +290,18 @@ export const labelO = (
               o: {
                 ...t.o,
                 label: label,
-              } as Term,
+              } as LabeledTerm,
             };
           }
         );
       else
-        return new Promise<Triple>((resolve) => {
+        return new Promise<LabeledTriple>((resolve) => {
           resolve({
             ...t,
             o: {
               ...t.o,
               label: getTermValue(t.o),
-            } as Term,
+            } as LabeledTerm,
           });
         });
     })
@@ -299,11 +309,11 @@ export const labelO = (
 };
 
 // Triple filter
-export const filter = (triples: Triple[], fn: (t: Triple) => boolean) =>
+export const filter = <T extends Triple | LabeledTriple>(triples: T[], fn: (t: T) => boolean) =>
   triples.filter((t) => fn(t));
 
 // Filter out 'structural' edges nobody needs to see
-export const filterInternals = (triples: Triple[]) =>
+export const filterInternals = <T extends Triple | LabeledTriple>(triples: T[]): T[] =>
   triples.filter((t) => {
     if (isIri(t.p) && t.p.i == RDFS_LABEL) return false;
     return true;

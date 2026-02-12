@@ -5,7 +5,18 @@ import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
 import { useSettings } from "./settings";
-import { Value } from "@trustgraph/client";
+import { Term, IriTerm, LiteralTerm } from "@trustgraph/client";
+
+// Helper to get the string value from a Term (IRI or Literal)
+const getTermValue = (term: Term): string => {
+  if (term.t === "i") return (term as IriTerm).i;
+  if (term.t === "l") return (term as LiteralTerm).v;
+  if (term.t === "b") return term.d;
+  return "";
+};
+
+// Helper to check if a Term is an IRI
+const isIri = (term: Term): term is IriTerm => term.t === "i";
 import { RDFS_LABEL } from "../utils/knowledge-graph";
 
 /**
@@ -64,12 +75,12 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
         throw new Error("Node ID is required");
       }
 
-      const subjectValue: Value = { v: nodeId, e: true };
+      const subjectTerm: IriTerm = { t: "i", i: nodeId };
 
       return socket
         .flow(flowId)
         .triplesQuery(
-          subjectValue,
+          subjectTerm,
           undefined,
           undefined,
           20,
@@ -102,14 +113,14 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
         throw new Error("Node ID is required");
       }
 
-      const objectValue: Value = { v: nodeId, e: true };
+      const objectTerm: IriTerm = { t: "i", i: nodeId };
 
       return socket
         .flow(flowId)
         .triplesQuery(
           undefined,
           undefined,
-          objectValue,
+          objectTerm,
           20,
           settings.collection
         )
@@ -140,12 +151,12 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
         throw new Error("Node ID is required");
       }
 
-      const subjectValue: Value = { v: nodeId, e: true };
+      const subjectTerm: IriTerm = { t: "i", i: nodeId };
 
       return socket
         .flow(flowId)
         .triplesQuery(
-          subjectValue,
+          subjectTerm,
           undefined,
           undefined,
           50,
@@ -156,8 +167,8 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
             console.error("Expected triples array, got:", triples);
             throw new Error("Invalid triples response");
           }
-          // Filter for properties (where o.e === false)
-          return triples.filter((triple) => triple.o && triple.o.e === false);
+          // Filter for properties (where o is not an IRI, i.e., literals)
+          return triples.filter((triple) => triple.o && !isIri(triple.o));
         })
         .catch((err) => {
           console.error("Error fetching properties:", err);
@@ -179,9 +190,9 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
     const uniqueRelationships = new Set<string>();
 
     outboundTriplesQuery.data.forEach((triple) => {
-      // Check if object is an entity (o.e === true)
-      if (triple.o && triple.o.e === true && triple.p && triple.p.v) {
-        uniqueRelationships.add(triple.p.v);
+      // Check if object is an IRI (entity)
+      if (triple.o && isIri(triple.o) && triple.p && isIri(triple.p)) {
+        uniqueRelationships.add(triple.p.i);
       }
     });
 
@@ -200,9 +211,9 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
     const uniqueRelationships = new Set<string>();
 
     inboundTriplesQuery.data.forEach((triple) => {
-      // Check if subject is an entity (s.e === true)
-      if (triple.s && triple.s.e === true && triple.p && triple.p.v) {
-        uniqueRelationships.add(triple.p.v);
+      // Check if subject is an IRI (entity)
+      if (triple.s && isIri(triple.s) && triple.p && isIri(triple.p)) {
+        uniqueRelationships.add(triple.p.i);
       }
     });
 
@@ -221,8 +232,8 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
     const uniqueProperties = new Set<string>();
 
     propertiesQuery.data.forEach((triple) => {
-      if (triple.p && triple.p.v) {
-        uniqueProperties.add(triple.p.v);
+      if (triple.p && isIri(triple.p)) {
+        uniqueProperties.add(triple.p.i);
       }
     });
 
@@ -256,14 +267,14 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
           // If not in standard mappings, query the knowledge graph
           try {
-            const subjectValue: Value = { v: relationshipURI, e: true };
-            const predicateValue: Value = { v: RDFS_LABEL, e: true };
+            const subjectTerm: IriTerm = { t: "i", i: relationshipURI };
+            const predicateTerm: IriTerm = { t: "i", i: RDFS_LABEL };
 
             const labelTriples = await socket
               .flow(flowId)
               .triplesQuery(
-                subjectValue,
-                predicateValue,
+                subjectTerm,
+                predicateTerm,
                 undefined,
                 1,
                 settings.collection
@@ -271,7 +282,7 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
             // Extract label from the first result, or use URI as fallback
             if (labelTriples && labelTriples.length > 0 && labelTriples[0].o) {
-              labelMap[relationshipURI] = labelTriples[0].o.v;
+              labelMap[relationshipURI] = getTermValue(labelTriples[0].o);
             } else {
               labelMap[relationshipURI] = relationshipURI;
             }
@@ -316,14 +327,14 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
           // If not in standard mappings, query the knowledge graph
           try {
-            const subjectValue: Value = { v: relationshipURI, e: true };
-            const predicateValue: Value = { v: RDFS_LABEL, e: true };
+            const subjectTerm: IriTerm = { t: "i", i: relationshipURI };
+            const predicateTerm: IriTerm = { t: "i", i: RDFS_LABEL };
 
             const labelTriples = await socket
               .flow(flowId)
               .triplesQuery(
-                subjectValue,
-                predicateValue,
+                subjectTerm,
+                predicateTerm,
                 undefined,
                 1,
                 settings.collection
@@ -331,7 +342,7 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
             // Extract label from the first result, or use URI as fallback
             if (labelTriples && labelTriples.length > 0 && labelTriples[0].o) {
-              labelMap[relationshipURI] = labelTriples[0].o.v;
+              labelMap[relationshipURI] = getTermValue(labelTriples[0].o);
             } else {
               labelMap[relationshipURI] = relationshipURI;
             }
@@ -376,14 +387,14 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
           // If not in standard mappings, query the knowledge graph
           try {
-            const subjectValue: Value = { v: propertyURI, e: true };
-            const predicateValue: Value = { v: RDFS_LABEL, e: true };
+            const subjectTerm: IriTerm = { t: "i", i: propertyURI };
+            const predicateTerm: IriTerm = { t: "i", i: RDFS_LABEL };
 
             const labelTriples = await socket
               .flow(flowId)
               .triplesQuery(
-                subjectValue,
-                predicateValue,
+                subjectTerm,
+                predicateTerm,
                 undefined,
                 1,
                 settings.collection
@@ -391,7 +402,7 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
             // Extract label from the first result, or use URI as fallback
             if (labelTriples && labelTriples.length > 0 && labelTriples[0].o) {
-              labelMap[propertyURI] = labelTriples[0].o.v;
+              labelMap[propertyURI] = getTermValue(labelTriples[0].o);
             } else {
               labelMap[propertyURI] = propertyURI;
             }
@@ -443,16 +454,20 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
     return propertiesQuery.data
       .filter((triple) => {
         // Exclude label properties (RDFS_LABEL) since node label is already shown
-        return triple.p?.v !== RDFS_LABEL;
+        const pUri = triple.p && isIri(triple.p) ? triple.p.i : "";
+        return pUri !== RDFS_LABEL;
       })
-      .map((triple) => ({
-        predicate: {
-          uri: triple.p?.v || "",
-          label:
-            propertyLabelsQuery.data?.[triple.p?.v || ""] || triple.p?.v || "",
-        },
-        value: triple.o?.v || "",
-      }));
+      .map((triple) => {
+        const pUri = triple.p && isIri(triple.p) ? triple.p.i : "";
+        const oValue = triple.o ? getTermValue(triple.o) : "";
+        return {
+          predicate: {
+            uri: pUri,
+            label: propertyLabelsQuery.data?.[pUri] || pUri,
+          },
+          value: oValue,
+        };
+      });
   }, [propertiesQuery.data, propertyLabelsQuery.data]);
 
   // Show loading indicators for long-running operations

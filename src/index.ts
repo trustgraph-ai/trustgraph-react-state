@@ -10,7 +10,11 @@ export type { SocketProviderProps } from "@trustgraph/react-provider";
 export type {
   BaseApi,
   Triple,
-  Value,
+  Term,
+  IriTerm,
+  BlankTerm,
+  LiteralTerm,
+  TripleTerm,
   ConnectionState,
   StreamingMetadata,
 } from "@trustgraph/client";
@@ -91,6 +95,7 @@ export type { LLMModelParameter, EnumOption } from "./model/llm-models";
 // Utility functions
 export { fileToBase64, textToBase64 } from "./utils/document-encoding";
 export { vectorSearch } from "./utils/vector-search";
-export { getTriples, RDFS_LABEL } from "./utils/knowledge-graph";
+export { getTriples, getTermValue, RDFS_LABEL } from "./utils/knowledge-graph";
+export type { LabeledTerm, LabeledTriple } from "./utils/knowledge-graph";
 export { prepareMetadata, createDocId } from "./model/document-metadata";
 export type { DocumentParameters } from "./model/document-metadata";

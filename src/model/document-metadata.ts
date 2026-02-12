@@ -19,12 +19,12 @@ export const createDocId = () => {
   return "https://trustgraph.ai/doc/" + uuidv4();
 };
 
-export const prepareMetadata = (doc_id: string, params) => {
+export const prepareMetadata = (doc_id: string, params: DocumentParameters) => {
   let doc_meta: Triple[] = [
     {
-      s: { v: doc_id, e: true },
-      p: { v: RDF_TYPE, e: true },
-      o: { v: DIGITAL_DOCUMENT, e: true },
+      s: { t: "i", i: doc_id },
+      p: { t: "i", i: RDF_TYPE },
+      o: { t: "i", i: DIGITAL_DOCUMENT },
     },
   ];
 
@@ -32,9 +32,9 @@ export const prepareMetadata = (doc_id: string, params) => {
     doc_meta = [
       ...doc_meta,
       {
-        s: { v: doc_id, e: true },
-        p: { v: RDFS_LABEL, e: true },
-        o: { v: params.title, e: false },
+        s: { t: "i", i: doc_id },
+        p: { t: "i", i: RDFS_LABEL },
+        o: { t: "l", v: params.title ?? "" },
       },
     ];
 
@@ -42,19 +42,19 @@ export const prepareMetadata = (doc_id: string, params) => {
     doc_meta = [
       ...doc_meta,
       {
-        s: { v: doc_id, e: true },
-        p: { v: SCHEMA_URL, e: true },
-        o: { v: params.url, e: true },
+        s: { t: "i", i: doc_id },
+        p: { t: "i", i: SCHEMA_URL },
+        o: { t: "i", i: params.url ?? "" },
       },
     ];
 
-  for (const keyword of params.keywords)
+  for (const keyword of params.keywords ?? [])
     doc_meta = [
       ...doc_meta,
       {
-        s: { v: doc_id, e: true },
-        p: { v: SCHEMA_KEYWORDS, e: true },
-        o: { v: keyword, e: false },
+        s: { t: "i", i: doc_id },
+        p: { t: "i", i: SCHEMA_KEYWORDS },
+        o: { t: "l", v: keyword },
       },
     ];
 

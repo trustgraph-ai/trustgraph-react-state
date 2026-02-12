@@ -6,7 +6,7 @@ import { useInference } from "./inference";
 import { useWorkbenchStateStore } from "./workbench";
 import { useProgressStateStore } from "./progress";
 import { useSettings } from "./settings";
-import { RDFS_LABEL } from "../utils/knowledge-graph";
+import { RDFS_LABEL, getTermValue } from "../utils/knowledge-graph";
 import { Entity } from "../model/entity";
 import { useSocket } from "@trustgraph/react-provider";
 import { useSessionStore } from "./session";
@@ -89,7 +89,7 @@ export const useChatSession = () => {
 
       // Get labels for each entity
       const labelPromises = result.entities.map(async (entity) => {
-        const labelActivity = "Label " + entity.v;
+        const labelActivity = "Label " + getTermValue(entity);
         addActivity(labelActivity);
 
         try {
@@ -97,7 +97,7 @@ export const useChatSession = () => {
             .flow(flowId)
             .triplesQuery(
               entity,
-              { v: RDFS_LABEL, e: true },
+              { t: "i", i: RDFS_LABEL },
               undefined,
               1,
               settings.collection
@@ -116,8 +116,8 @@ export const useChatSession = () => {
       const entityList: Entity[] = labelResponses
         .filter((resp) => resp && resp.length > 0)
         .map((resp: Triple[]) => ({
-          label: resp[0].o.v,
-          uri: resp[0].s.v,
+          label: getTermValue(resp[0].o),
+          uri: getTermValue(resp[0].s),
         }));
 
       setEntities(entityList);

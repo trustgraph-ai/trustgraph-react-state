@@ -1,4 +1,25 @@
-import { FlowApi, Triple } from "@trustgraph/client";
+import { FlowApi, Triple, Term, IriTerm, LiteralTerm } from "@trustgraph/client";
+
+// Extended types for Terms and Triples with labels (used for display purposes)
+export type LabeledTerm = Term & { label?: string };
+
+export interface LabeledTriple {
+  s: LabeledTerm;
+  p: LabeledTerm;
+  o: LabeledTerm;
+  g?: string;
+}
+
+// Helper to get the string value from a Term (IRI or Literal)
+export const getTermValue = (term: Term): string => {
+  if (term.t === "i") return (term as IriTerm).i;
+  if (term.t === "l") return (term as LiteralTerm).v;
+  if (term.t === "b") return term.d;
+  return "";
+};
+
+// Helper to check if a Term is an IRI
+const isIri = (term: Term): term is IriTerm => term.t === "i";
 
 export const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
 
@@ -47,7 +68,7 @@ export const queryS = (
 
   return socket
     .triplesQuery(
-      { v: uri, e: true },
+      { t: "i", i: uri },
       undefined,
       undefined,
       limit ? limit : LIMIT,
@@ -78,7 +99,7 @@ export const queryP = (
   return socket
     .triplesQuery(
       undefined,
-      { v: uri, e: true },
+      { t: "i", i: uri },
       undefined,
       limit ? limit : LIMIT,
       collection
@@ -109,7 +130,7 @@ export const queryO = (
     .triplesQuery(
       undefined,
       undefined,
-      { v: uri, e: true },
+      { t: "i", i: uri },
       limit ? limit : LIMIT,
       collection
     )
@@ -174,8 +195,8 @@ export const queryLabel = (
   // Search tthe graph for the URI->label relationship
   return socket
     .triplesQuery(
-      { v: uri, e: true },
-      { v: RDFS_LABEL, e: true },
+      { t: "i", i: uri },
+      { t: "i", i: RDFS_LABEL },
       undefined,
       1,
       collection
@@ -183,7 +204,7 @@ export const queryLabel = (
     .then((triples: Triple[]) => {
       // If got a result, return the label, otherwise the URI
       // can be its own label
-      if (triples.length > 0) return triples[0].o.v;
+      if (triples.length > 0) return getTermValue(triples[0].o);
       else return uri;
     })
     .then((x) => {
@@ -200,21 +221,21 @@ export const queryLabel = (
 // Returns a promise
 export const labelS = (
   socket: FlowApi,
-  triples: Triple[],
+  triples: Triple[] | LabeledTriple[],
   add: (s: string) => void,
   remove: (s: string) => void,
   collection?: string
-): Promise<Triple[]> => {
+): Promise<LabeledTriple[]> => {
   return Promise.all(
     triples.map((t) => {
-      return queryLabel(socket, t.s.v, add, remove, collection).then(
+      return queryLabel(socket, getTermValue(t.s), add, remove, collection).then(
         (label: string) => {
           return {
             ...t,
             s: {
               ...t.s,
               label: label,
-            },
+            } as LabeledTerm,
           };
         }
       );
@@ -226,21 +247,21 @@ export const labelS = (
 // Returns a promise
 export const labelP = (
   socket: FlowApi,
-  triples: Triple[],
+  triples: Triple[] | LabeledTriple[],
   add: (s: string) => void,
   remove: (s: string) => void,
   collection?: string
-): Promise<Triple[]> => {
+): Promise<LabeledTriple[]> => {
   return Promise.all(
     triples.map((t) => {
-      return queryLabel(socket, t.p.v, add, remove, collection).then(
+      return queryLabel(socket, getTermValue(t.p), add, remove, collection).then(
         (label: string) => {
           return {
             ...t,
             p: {
               ...t.p,
               label: label,
-            },
+            } as LabeledTerm,
           };
         }
       );
@@ -252,35 +273,35 @@ export const labelP = (
 // Returns a promise
 export const labelO = (
   socket: FlowApi,
-  triples: Triple[],
+  triples: Triple[] | LabeledTriple[],
   add: (s: string) => void,
   remove: (s: string) => void,
   collection?: string
-): Promise<Triple[]> => {
+): Promise<LabeledTriple[]> => {
   return Promise.all(
     triples.map((t) => {
-      // If the 'o' element is a entity, do a label lookup, else
+      // If the 'o' element is an IRI, do a label lookup, else
       // just use the literal value for its label
-      if (t.o.e)
-        return queryLabel(socket, t.o.v, add, remove, collection).then(
+      if (isIri(t.o))
+        return queryLabel(socket, t.o.i, add, remove, collection).then(
           (label: string) => {
             return {
               ...t,
               o: {
                 ...t.o,
                 label: label,
-              },
+              } as LabeledTerm,
             };
           }
         );
       else
-        return new Promise<Triple>((resolve) => {
+        return new Promise<LabeledTriple>((resolve) => {
           resolve({
             ...t,
             o: {
               ...t.o,
-              label: t.o.v,
-            },
+              label: getTermValue(t.o),
+            } as LabeledTerm,
           });
         });
     })
@@ -288,13 +309,13 @@ export const labelO = (
 };
 
 // Triple filter
-export const filter = (triples: Triple[], fn: (t: Triple) => boolean) =>
+export const filter = <T extends Triple | LabeledTriple>(triples: T[], fn: (t: T) => boolean) =>
   triples.filter((t) => fn(t));
 
 // Filter out 'structural' edges nobody needs to see
-export const filterInternals = (triples: Triple[]) =>
+export const filterInternals = <T extends Triple | LabeledTriple>(triples: T[]): T[] =>
   triples.filter((t) => {
-    if (t.p.e && t.p.v == RDFS_LABEL) return false;
+    if (isIri(t.p) && t.p.i == RDFS_LABEL) return false;
     return true;
   });
 

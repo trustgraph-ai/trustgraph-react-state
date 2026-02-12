@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useSocket } from "@trustgraph/react-provider";
 import { useSessionStore } from "./session";
-import type { Value } from "@trustgraph/client";
+import type { Term } from "@trustgraph/client";
 
 export interface GraphRagOptions {
   entityLimit?: number;
@@ -12,7 +12,7 @@ export interface GraphRagOptions {
 
 export interface GraphRagResult {
   response: string;
-  entities: Value[];
+  entities: Term[];
 }
 
 export interface GraphRagCallbacks {

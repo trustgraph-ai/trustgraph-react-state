@@ -181,7 +181,7 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
   /**
    * Process outbound triples to extract navigable relationships
-   * Filters for entity relationships (o.e === true) and removes duplicates
+   * Filters for entity relationships (where o is an IRI) and removes duplicates
    */
   const outboundRelationships = useMemo(() => {
     if (!outboundTriplesQuery.data) return [];
@@ -202,7 +202,7 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
   /**
    * Process inbound triples to extract navigable relationships
-   * Filters for entity relationships (s.e === true) and removes duplicates
+   * Filters for entity relationships (where s is an IRI) and removes duplicates
    */
   const inboundRelationships = useMemo(() => {
     if (!inboundTriplesQuery.data) return [];
@@ -223,7 +223,7 @@ export const useNodeDetails = (nodeId: string | undefined, flowId: string) => {
 
   /**
    * Process properties to extract unique property URIs
-   * Properties are triples where o.e === false (literals)
+   * Properties are triples where o is a literal (not an IRI)
    */
   const propertyURIs = useMemo(() => {
     if (!propertiesQuery.data) return [];

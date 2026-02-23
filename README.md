@@ -156,7 +156,7 @@ const handler: NotificationHandler = {
 - `useChat()` - Chat interface operations
 - `useChatQuery()` - Chat query management
 - `useStructuredQuery()` - Structured query operations
-- `useObjectsQuery()` - Object queries
+- `useRowsQuery()` - Row queries
 - `useNlpQuery()` - Natural language processing queries
 
 #### Configuration

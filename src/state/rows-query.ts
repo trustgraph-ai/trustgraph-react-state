@@ -13,10 +13,10 @@ import { useSessionStore } from "./session";
 import { useSettings } from "./settings";
 
 /**
- * Custom hook for managing GraphQL objects queries
- * Provides functionality for executing GraphQL queries against structured data objects
+ * Custom hook for managing GraphQL rows queries
+ * Provides functionality for executing GraphQL queries against structured row data
  */
-export const useObjectsQuery = () => {
+export const useRowsQuery = () => {
   // Socket connection for API calls
   const socket = useSocket();
   const connectionState = useConnectionState();
@@ -32,8 +32,8 @@ export const useObjectsQuery = () => {
     connectionState?.status === "authenticated" ||
     connectionState?.status === "unauthenticated";
 
-  // Mutation for executing GraphQL objects queries
-  const objectsQueryMutation = useMutation({
+  // Mutation for executing GraphQL rows queries
+  const rowsQueryMutation = useMutation({
     mutationFn: async ({
       query,
       collection,
@@ -51,7 +51,7 @@ export const useObjectsQuery = () => {
 
       return socket
         .flow(flowId)
-        .objectsQuery(
+        .rowsQuery(
           query,
           collection || settings.collection,
           variables,
@@ -59,7 +59,7 @@ export const useObjectsQuery = () => {
         );
     },
     onError: (err: unknown) => {
-      console.log("Objects query error:", err);
+      console.log("Rows query error:", err);
       const errorMessage = err instanceof Error ? err.message : String(err);
       notify.error(`GraphQL query failed: ${errorMessage}`);
     },
@@ -69,21 +69,21 @@ export const useObjectsQuery = () => {
   });
 
   // Show loading indicator for query operations
-  useActivity(objectsQueryMutation.isPending, "Executing GraphQL query");
+  useActivity(rowsQueryMutation.isPending, "Executing GraphQL query");
 
   // Return the public API for the hook
   return {
     // Query execution
-    executeQuery: objectsQueryMutation.mutate,
-    executeQueryAsync: objectsQueryMutation.mutateAsync,
+    executeQuery: rowsQueryMutation.mutate,
+    executeQueryAsync: rowsQueryMutation.mutateAsync,
 
     // Query state
-    isExecuting: objectsQueryMutation.isPending,
-    error: objectsQueryMutation.error,
-    data: objectsQueryMutation.data,
+    isExecuting: rowsQueryMutation.isPending,
+    error: rowsQueryMutation.error,
+    data: rowsQueryMutation.data,
 
     // Reset function to clear previous results
-    reset: objectsQueryMutation.reset,
+    reset: rowsQueryMutation.reset,
 
     // Socket readiness
     isReady: isSocketReady,

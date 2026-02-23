@@ -6,7 +6,7 @@ The `user` parameter is passed redundantly throughout the codebase:
 
 1. **SocketProvider** receives `user` prop and passes it to `createTrustGraphSocket(user, apiKey)`
 2. **BaseApi** stores `user` in `this.user` (line 162, 178)
-3. **Many methods** already use `this.api.user` internally (removeDocument, objectsQuery, etc.)
+3. **Many methods** already use `this.api.user` internally (removeDocument, rowsQuery, etc.)
 4. **Some methods** still require explicit `user` parameter (listCollections, updateCollection, deleteCollection, loadDocument, addProcessing)
 5. **React hooks** pull `user` from settings and pass it explicitly
 
@@ -16,7 +16,7 @@ The `user` is already available in the socket context - no need to pass it repea
 
 ### Already using `this.api.user`:
 - `removeDocument()` - line 703
-- `objectsQuery()` - line 1254
+- `rowsQuery()` - line 1254
 - `nlpQuery()` - line 1301
 - Various other methods
 

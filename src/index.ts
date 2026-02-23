@@ -61,7 +61,7 @@ export type {
 } from "./state/inference";
 export { useChatSession, useChat } from "./state/chat-session";
 export { useStructuredQuery } from "./state/structured-query";
-export { useObjectsQuery } from "./state/objects-query";
+export { useRowsQuery } from "./state/rows-query";
 export { useEmbeddings } from "./state/embeddings";
 export { useCollections } from "./state/collections";
 export { useNlpQuery } from "./state/nlp-query";

@@ -21,10 +21,6 @@ export interface ConversationState {
 
 export const useConversation = create<ConversationState>()((set) => ({
   messages: [
-    {
-      role: "ai",
-      text: "Welcome to the TrustGraph Test Suite. Use the chat interface to perform Graph RAG requests.",
-    },
   ],
 
   input: "",

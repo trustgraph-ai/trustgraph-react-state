@@ -7,15 +7,13 @@ import { useSettings } from "./settings";
 import { useSessionStore } from "./session";
 
 /**
- * Custom hook for managing token cost operations
- * Provides functionality for fetching, deleting, and updating token costs
- * for AI models
- * @returns {Object} Token cost state and operations
+ * Custom hook for querying graph embeddings
+ * Finds graph entities similar to the provided embedding vectors
  */
-export const useGraphEmbeddings = ({ flow, vecs, limit, collection }: {
+export const useGraphEmbeddings = ({ flow, vecs, limit = 10, collection }: {
   flow?: string;
-  vecs: number[][];
-  limit: number;
+  vecs?: number[][];
+  limit?: number;
   collection?: string;
 }): {
   graphEmbeddings: any;
@@ -24,36 +22,22 @@ export const useGraphEmbeddings = ({ flow, vecs, limit, collection }: {
   error: Error | null;
   refetch: () => void;
 } => {
-  // WebSocket connection for communicating with the configuration service
   const socket = useSocket();
-
-  // Hook for displaying user notifications
   const notify = useNotification();
-
-  // Settings for default collection
   const { settings } = useSettings();
-
-  // Session state for default flow ID
   const sessionFlowId = useSessionStore((state) => state.flowId);
 
-  // Use explicit param if provided, otherwise fall back to session state
   const effectiveFlow = flow ?? sessionFlowId;
+  const effectiveCollection = collection ?? settings.collection;
 
-  /**
-   * Query for fetching graph embeddings
-   * Uses React Query for caching and background refetching
-   */
   const query = useQuery({
-    queryKey: ["graph-embeddings", { flow: effectiveFlow, vecs, limit }],
+    queryKey: ["graph-embeddings", { flow: effectiveFlow, vecs, limit, collection: effectiveCollection }],
+    enabled: !!vecs && vecs.length > 0 && !!effectiveFlow,
     queryFn: () => {
       return socket
         .flow(effectiveFlow)
-        .graphEmbeddingsQuery(vecs, limit, collection || settings.collection)
-        .then((x) => {
-          return x;
-        })
+        .graphEmbeddingsQuery(vecs!, limit, effectiveCollection)
         .catch((err: unknown) => {
-          console.log("Error:", err);
           const message = err instanceof Error ? err.message : String(err);
           notify.error(message);
           throw err;
@@ -61,18 +45,13 @@ export const useGraphEmbeddings = ({ flow, vecs, limit, collection }: {
     },
   });
 
-  // Show loading indicators for long-running operations
   useActivity(query.isLoading, "Loading graph embeddings");
 
-  // Return token cost state and operations for use in components
   return {
-    // Token cost query state
     graphEmbeddings: query.data,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,
-
-    // Manual refetch function
     refetch: query.refetch,
   };
 };

@@ -5,13 +5,12 @@ import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
 import { useSessionStore } from "./session";
 import { useSettings } from "./settings";
-import { RowEmbeddingsMatch } from "@trustgraph/client";
 
 /**
- * Custom hook for querying row embeddings using vectors.
- * Searches for similar records in structured data indexes.
+ * Custom hook for querying document chunks using vectors.
+ * Searches for document chunks with similar embeddings.
  */
-export const useRowEmbeddingsQuery = ({ flow }: { flow?: string } = {}) => {
+export const useDocumentEmbeddingsQuery = ({ flow }: { flow?: string } = {}) => {
   const socket = useSocket();
   const connectionState = useConnectionState();
   const notify = useNotification();
@@ -27,52 +26,49 @@ export const useRowEmbeddingsQuery = ({ flow }: { flow?: string } = {}) => {
   const mutation = useMutation({
     mutationFn: async ({
       vectors,
-      schemaName,
+      user,
       collection,
-      indexName,
       limit = 10,
     }: {
       vectors: number[][];
-      schemaName: string;
+      user?: string;
       collection?: string;
-      indexName?: string;
       limit?: number;
-    }): Promise<RowEmbeddingsMatch[]> => {
+    }) => {
       if (!isSocketReady) {
         throw new Error("Socket connection not ready");
       }
 
-      return socket.flow(effectiveFlow).rowEmbeddingsQuery(
+      return socket.flow(effectiveFlow).documentEmbeddingsQuery(
         vectors,
-        schemaName,
+        user ?? settings.user,
         collection ?? settings.collection,
-        indexName,
         limit
       );
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : String(err);
-      notify.error(`Row embeddings query failed: ${message}`);
+      notify.error(`Document embeddings query failed: ${message}`);
     },
     onSuccess: (data) => {
-      const count = data?.length ?? 0;
+      const count = Array.isArray(data) ? data.length : 0;
       if (count > 0) {
-        notify.success(`Found ${count} matching record${count !== 1 ? "s" : ""}`);
+        notify.success(`Found ${count} matching chunk${count !== 1 ? "s" : ""}`);
       } else {
-        notify.info("No matching records found");
+        notify.info("No matching document chunks found");
       }
     },
   });
 
-  useActivity(mutation.isPending, "Querying row embeddings");
+  useActivity(mutation.isPending, "Searching document chunks");
 
   return {
     executeQuery: mutation.mutate,
     executeQueryAsync: mutation.mutateAsync,
     isExecuting: mutation.isPending,
     error: mutation.error,
-    matches: mutation.data ?? [],
-    hasResults: (mutation.data?.length ?? 0) > 0,
+    results: mutation.data ?? [],
+    hasResults: Array.isArray(mutation.data) && mutation.data.length > 0,
     reset: mutation.reset,
     isReady: isSocketReady,
   };

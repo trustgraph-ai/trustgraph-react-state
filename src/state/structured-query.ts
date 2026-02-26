@@ -59,14 +59,7 @@ export const useStructuredQuery = () => {
           : err?.toString() || "Unknown error";
       notify.error(`Structured query failed: ${errorMessage}`);
     },
-    onSuccess: (data) => {
-      if (data.data) {
-        notify.success("Structured query executed successfully");
-      } else if (data.errors && data.errors.length > 0) {
-        notify.warning("Query executed with errors");
-      } else {
-        notify.warning("Query processed but returned no data");
-      }
+    onSuccess: () => {
     },
   });
 

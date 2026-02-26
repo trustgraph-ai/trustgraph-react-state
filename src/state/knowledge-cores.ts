@@ -94,8 +94,6 @@ export const useKnowledgeCores = () => {
       notify.error(err.toString());
     },
     onSuccess: () => {
-      // Show success notification
-      notify.success("Knowledge cores loaded successfully");
     },
   });
 

@@ -63,12 +63,7 @@ export const useNlpQuery = ({ flow }: { flow?: string } = {}): {
       const errorMessage = err instanceof Error ? err.message : String(err);
       notify.error(`NLP query conversion failed: ${errorMessage}`);
     },
-    onSuccess: (data) => {
-      if (data.graphql_query) {
-        notify.success("Natural language converted to GraphQL successfully");
-      } else {
-        notify.warning("Query processed but no GraphQL generated");
-      }
+    onSuccess: () => {
     },
   });
 

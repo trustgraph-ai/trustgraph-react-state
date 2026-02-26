@@ -67,7 +67,6 @@ export const useRowsQuery = ({ flow }: { flow?: string } = {}) => {
       notify.error(`GraphQL query failed: ${errorMessage}`);
     },
     onSuccess: () => {
-      notify.success("GraphQL query executed successfully");
     },
   });
 

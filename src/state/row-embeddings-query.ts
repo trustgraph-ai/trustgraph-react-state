@@ -54,13 +54,7 @@ export const useRowEmbeddingsQuery = ({ flow }: { flow?: string } = {}) => {
       const message = err instanceof Error ? err.message : String(err);
       notify.error(`Row embeddings query failed: ${message}`);
     },
-    onSuccess: (data) => {
-      const count = data?.length ?? 0;
-      if (count > 0) {
-        notify.success(`Found ${count} matching record${count !== 1 ? "s" : ""}`);
-      } else {
-        notify.info("No matching records found");
-      }
+    onSuccess: () => {
     },
   });
 

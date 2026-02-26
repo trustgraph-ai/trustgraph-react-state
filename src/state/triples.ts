@@ -5,6 +5,7 @@ import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
 import { useSettings } from "./settings";
+import { useSessionStore } from "./session";
 
 /**
  * Custom hook for managing token cost operations
@@ -35,17 +36,21 @@ export const useTriples = ({ flow, s, p, o, limit, collection }: {
   // Settings for default collection
   const { settings } = useSettings();
 
-  if (!flow) flow = "default";
+  // Session state for default flow ID
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   /**
    * Query for fetching all token costs
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["triples", { flow, s, p, o, limit }],
+    queryKey: ["triples", { flow: effectiveFlow, s, p, o, limit }],
     queryFn: () => {
       return socket
-        .flow(flow)
+        .flow(effectiveFlow)
         .triplesQuery(s, p, o, limit, collection || settings.collection)
         .then((x) => {
           if (x["error"]) {

@@ -16,14 +16,17 @@ import { useSettings } from "./settings";
  * Custom hook for managing GraphQL rows queries
  * Provides functionality for executing GraphQL queries against structured row data
  */
-export const useRowsQuery = () => {
+export const useRowsQuery = ({ flow }: { flow?: string } = {}) => {
   // Socket connection for API calls
   const socket = useSocket();
   const connectionState = useConnectionState();
   // Notification system for user feedback
   const notify = useNotification();
   // Session state for current flow ID
-  const flowId = useSessionStore((state) => state.flowId);
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
   // Settings for default collection
   const { settings } = useSettings();
 
@@ -50,7 +53,7 @@ export const useRowsQuery = () => {
       }
 
       return socket
-        .flow(flowId)
+        .flow(effectiveFlow)
         .rowsQuery(
           query,
           collection || settings.collection,

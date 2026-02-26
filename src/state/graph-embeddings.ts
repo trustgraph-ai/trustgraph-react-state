@@ -4,6 +4,7 @@ import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
 import { useSettings } from "./settings";
+import { useSessionStore } from "./session";
 
 /**
  * Custom hook for managing token cost operations
@@ -32,17 +33,21 @@ export const useGraphEmbeddings = ({ flow, vecs, limit, collection }: {
   // Settings for default collection
   const { settings } = useSettings();
 
-  if (!flow) flow = "default";
+  // Session state for default flow ID
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   /**
    * Query for fetching graph embeddings
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["graph-embeddings", { vecs, limit }],
+    queryKey: ["graph-embeddings", { flow: effectiveFlow, vecs, limit }],
     queryFn: () => {
       return socket
-        .flow(flow)
+        .flow(effectiveFlow)
         .graphEmbeddingsQuery(vecs, limit, collection || settings.collection)
         .then((x) => {
           return x;

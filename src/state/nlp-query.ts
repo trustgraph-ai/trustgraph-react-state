@@ -14,7 +14,7 @@ import { useSessionStore } from "./session";
  * Custom hook for managing NLP query operations
  * Provides functionality for converting natural language questions to GraphQL queries
  */
-export const useNlpQuery = (): {
+export const useNlpQuery = ({ flow }: { flow?: string } = {}): {
   convertQuery: (params: { question: string; maxResults?: number }) => void;
   convertQueryAsync: (params: { question: string; maxResults?: number }) => Promise<any>;
   isConverting: boolean;
@@ -33,7 +33,10 @@ export const useNlpQuery = (): {
   // Notification system for user feedback
   const notify = useNotification();
   // Session state for current flow ID
-  const flowId = useSessionStore((state) => state.flowId);
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   // Only enable operations when socket is connected and ready
   const isSocketReady =
@@ -53,7 +56,7 @@ export const useNlpQuery = (): {
         throw new Error("Socket connection not ready");
       }
 
-      return socket.flow(flowId).nlpQuery(question, maxResults);
+      return socket.flow(effectiveFlow).nlpQuery(question, maxResults);
     },
     onError: (err: unknown) => {
       console.log("NLP query error:", err);

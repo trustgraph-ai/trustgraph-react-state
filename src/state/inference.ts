@@ -36,9 +36,12 @@ export interface AgentCallbacks {
  * Hook providing low-level access to LLM inference services
  * No conversation state or side effects - just the API calls
  */
-export const useInference = () => {
+export const useInference = ({ flow }: { flow?: string } = {}) => {
   const socket = useSocket();
-  const flowId = useSessionStore((state) => state.flowId);
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   /**
    * Graph RAG inference with entity discovery
@@ -74,17 +77,17 @@ export const useInference = () => {
             };
 
             socket
-              .flow(flowId)
+              .flow(effectiveFlow)
               .graphRagStreaming(input, onChunk, onError, options, collection);
           })
-        : await socket.flow(flowId).graphRag(input, options || {}, collection);
+        : await socket.flow(effectiveFlow).graphRag(input, options || {}, collection);
 
       // Get embeddings for entity discovery
-      const embeddings = await socket.flow(flowId).embeddings(input);
+      const embeddings = await socket.flow(effectiveFlow).embeddings(input);
 
       // Query graph embeddings to find entities
       const entities = await socket
-        .flow(flowId)
+        .flow(effectiveFlow)
         .graphEmbeddingsQuery(
           embeddings,
           options?.entityLimit || 10,
@@ -127,10 +130,10 @@ export const useInference = () => {
             };
 
             socket
-              .flow(flowId)
+              .flow(effectiveFlow)
               .textCompletionStreaming(systemPrompt, input, onChunk, onError);
           })
-        : await socket.flow(flowId).textCompletion(systemPrompt, input);
+        : await socket.flow(effectiveFlow).textCompletion(systemPrompt, input);
     },
   });
 
@@ -170,7 +173,7 @@ export const useInference = () => {
         };
 
         socket
-          .flow(flowId)
+          .flow(effectiveFlow)
           .agent(input, onThink, onObserve, onAnswer, onError);
       });
     },

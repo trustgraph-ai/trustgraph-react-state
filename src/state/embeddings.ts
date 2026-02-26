@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSocket, useConnectionState } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
+import { useSessionStore } from "./session";
 
 /**
  * Custom hook for managing token cost operations
@@ -24,18 +25,22 @@ export const useEmbeddings = ({ flow, term }) => {
   // Hook for displaying user notifications
   const notify = useNotification();
 
-  if (!flow) flow = "default";
+  // Session state for default flow ID
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   /**
    * Query for fetching all token costs
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["embeddings", { flow, term }],
-    enabled: isSocketReady && !!term && !!flow,
+    queryKey: ["embeddings", { flow: effectiveFlow, term }],
+    enabled: isSocketReady && !!term && !!effectiveFlow,
     queryFn: () => {
       return socket
-        .flow(flow)
+        .flow(effectiveFlow)
         .embeddings(term)
         .then((x) => {
           if (x["error"]) {

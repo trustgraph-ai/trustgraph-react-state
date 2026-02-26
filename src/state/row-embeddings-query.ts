@@ -21,16 +21,19 @@ import { RowEmbeddingsMatch } from "@trustgraph/client";
  * Provides functionality for executing semantic searches on structured data indexes
  * First converts query text to embeddings, then searches for similar records
  */
-export const useRowEmbeddingsQuery = () => {
+export const useRowEmbeddingsQuery = ({ flow }: { flow?: string } = {}) => {
   // Socket connection for API calls
   const socket = useSocket();
   const connectionState = useConnectionState();
   // Notification system for user feedback
   const notify = useNotification();
   // Session state for current flow ID
-  const flowId = useSessionStore((state) => state.flowId);
+  const sessionFlowId = useSessionStore((state) => state.flowId);
   // Settings for default collection
   const { settings } = useSettings();
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   // Only enable operations when socket is connected and ready
   const isSocketReady =
@@ -56,13 +59,13 @@ export const useRowEmbeddingsQuery = () => {
         throw new Error("Socket connection not ready");
       }
 
-      const flow = socket.flow(flowId);
+      const flowApi = socket.flow(effectiveFlow);
 
       // First, get embeddings for the query text
-      const vectors = await flow.embeddings(query);
+      const vectors = await flowApi.embeddings(query);
 
       // Then query row embeddings with those vectors
-      return flow.rowEmbeddingsQuery(
+      return flowApi.rowEmbeddingsQuery(
         vectors,
         schemaName,
         collection || settings.collection,

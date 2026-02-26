@@ -5,6 +5,7 @@ import { useSocket } from "@trustgraph/react-provider";
 import { useNotification } from "../hooks/useNotification";
 import { vectorSearch } from "../utils/vector-search";
 import { useProgressStateStore } from "./progress";
+import { useSessionStore } from "./session";
 
 /**
  * Custom hook for managing vector search operations
@@ -25,6 +26,9 @@ export const useVectorSearch = () => {
   // Hook for displaying user notifications
   const notify = useNotification();
 
+  // Session state for default flow ID
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
   // State to track current search parameters
   const [searchParams, setSearchParams] = useState(null);
 
@@ -39,7 +43,7 @@ export const useVectorSearch = () => {
       const { flow, term, limit, collection } = searchParams;
       return vectorSearch(
         socket,
-        flow || "default",
+        flow ?? sessionFlowId,
         addActivity,
         removeActivity,
         term,
@@ -68,7 +72,7 @@ export const useVectorSearch = () => {
       return;
     }
     setSearchParams({
-      flow: flow || "default",
+      flow: flow ?? sessionFlowId,
       term,
       limit: limit || 10,
       collection,

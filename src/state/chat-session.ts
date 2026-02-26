@@ -17,7 +17,7 @@ import type { Triple } from "@trustgraph/client";
  * Combines conversation state with inference services
  * Handles routing, progress tracking, entity management, and notifications
  */
-export const useChatSession = () => {
+export const useChatSession = ({ flow }: { flow?: string } = {}) => {
   const socket = useSocket();
   const notify = useNotification();
 
@@ -34,14 +34,17 @@ export const useChatSession = () => {
   );
 
   // Session and workbench state
-  const flowId = useSessionStore((state) => state.flowId);
+  const sessionFlowId = useSessionStore((state) => state.flowId);
   const setEntities = useWorkbenchStateStore((state) => state.setEntities);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   // Settings for GraphRAG configuration
   const { settings } = useSettings();
 
   // Inference services
-  const inference = useInference();
+  const inference = useInference({ flow });
 
   /**
    * Graph RAG chat handling with entity discovery
@@ -94,7 +97,7 @@ export const useChatSession = () => {
 
         try {
           const triples = await socket
-            .flow(flowId)
+            .flow(effectiveFlow)
             .triplesQuery(
               entity,
               { t: "i", i: RDFS_LABEL },

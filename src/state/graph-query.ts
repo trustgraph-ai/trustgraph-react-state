@@ -10,22 +10,33 @@ import {
   Subgraph,
 } from "../utils/knowledge-graph-viz";
 import { useProgressStateStore } from "./progress";
+import { useSessionStore } from "./session";
 
 /**
  * Custom hook for managing graph visualization operations using React Query
  * Provides functionality for fetching and updating graph subgraphs
  * @param entityUri - The URI of the entity to build the graph around
- * @param flowId - The flow ID to use for the query
+ * @param flow - Optional flow ID to use for the query (defaults to session state)
  * @param collection - The collection to query
  * @returns {Object} Graph state and operations
  */
-export const useGraphSubgraph = (
-  entityUri: string | undefined,
-  flowId: string,
-  collection: string
-) => {
+export const useGraphSubgraph = ({
+  entityUri,
+  flow,
+  collection,
+}: {
+  entityUri: string | undefined;
+  flow?: string;
+  collection: string;
+}) => {
   // WebSocket connection for communicating with the graph service
   const socket = useSocket();
+
+  // Session state for default flow ID
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   const addActivity = useProgressStateStore((state) => state.addActivity);
 
@@ -44,7 +55,7 @@ export const useGraphSubgraph = (
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["graph-subgraph", { entityUri, flowId, collection }],
+    queryKey: ["graph-subgraph", { entityUri, flow: effectiveFlow, collection }],
     queryFn: async () => {
       if (!entityUri) {
         throw new Error("Entity URI is required");
@@ -53,7 +64,7 @@ export const useGraphSubgraph = (
       const sg = createSubgraph();
 
       // Use the existing updateSubgraph utility function for initial load
-      const api = socket.flow(flowId);
+      const api = socket.flow(effectiveFlow);
       return updateSubgraph(
         api,
         entityUri,
@@ -63,7 +74,7 @@ export const useGraphSubgraph = (
         collection
       );
     },
-    enabled: !!entityUri && !!flowId, // Only run query if both entityUri and flowId are available
+    enabled: !!entityUri && !!effectiveFlow, // Only run query if both entityUri and effectiveFlow are available
   });
 
   /**
@@ -77,7 +88,7 @@ export const useGraphSubgraph = (
       nodeId: string;
       currentGraph: Subgraph;
     }) => {
-      const api = socket.flow(flowId);
+      const api = socket.flow(effectiveFlow);
       return updateSubgraph(
         api,
         nodeId,
@@ -89,7 +100,7 @@ export const useGraphSubgraph = (
     onSuccess: (newGraph) => {
       // Update the cache with the new graph data
       queryClient.setQueryData(
-        ["graph-subgraph", { entityUri, flowId, collection }],
+        ["graph-subgraph", { entityUri, flow: effectiveFlow, collection }],
         newGraph
       );
     },
@@ -114,7 +125,7 @@ export const useGraphSubgraph = (
       direction: "incoming" | "outgoing";
       currentGraph: Subgraph;
     }) => {
-      const api = socket.flow(flowId);
+      const api = socket.flow(effectiveFlow);
       return updateSubgraphByRelationship(
         api,
         selectedNodeId,
@@ -129,7 +140,7 @@ export const useGraphSubgraph = (
     onSuccess: (newGraph) => {
       // Update the cache with the new graph data
       queryClient.setQueryData(
-        ["graph-subgraph", { entityUri, flowId, collection }],
+        ["graph-subgraph", { entityUri, flow: effectiveFlow, collection }],
         newGraph
       );
     },

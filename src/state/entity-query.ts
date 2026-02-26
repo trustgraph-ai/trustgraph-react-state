@@ -5,20 +5,25 @@ import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
 import { getTriples } from "../utils/knowledge-graph";
 import { useProgressStateStore } from "./progress";
+import { useSessionStore } from "./session";
 
 /**
  * Custom hook for managing entity detail operations using React Query
  * Provides functionality for fetching entity details and related triples
  * @param entityUri - The URI of the entity to fetch details for
- * @param flowId - The flow ID to use for the query
+ * @param flow - Optional flow ID to use for the query (defaults to session state)
  * @param collection - The collection to query
  * @returns {Object} Entity detail state and operations
  */
-export const useEntityDetail = (
-  entityUri: string | undefined,
-  flowId: string,
-  collection: string
-): {
+export const useEntityDetail = ({
+  entityUri,
+  flow,
+  collection,
+}: {
+  entityUri: string | undefined;
+  flow?: string;
+  collection: string;
+}): {
   detail: Awaited<ReturnType<typeof getTriples>> | undefined;
   isLoading: boolean;
   isError: boolean;
@@ -27,6 +32,12 @@ export const useEntityDetail = (
 } => {
   // WebSocket connection for communicating with the graph service
   const socket = useSocket();
+
+  // Session state for default flow ID
+  const sessionFlowId = useSessionStore((state) => state.flowId);
+
+  // Use explicit param if provided, otherwise fall back to session state
+  const effectiveFlow = flow ?? sessionFlowId;
 
   const addActivity = useProgressStateStore((state) => state.addActivity);
 
@@ -42,14 +53,14 @@ export const useEntityDetail = (
    * Uses React Query for caching and background refetching
    */
   const query = useQuery({
-    queryKey: ["entity-detail", { entityUri, flowId, collection }],
+    queryKey: ["entity-detail", { entityUri, flow: effectiveFlow, collection }],
     queryFn: async () => {
       if (!entityUri) {
         throw new Error("Entity URI is required");
       }
 
       // Use the existing getTriples utility function
-      const api = socket.flow(flowId);
+      const api = socket.flow(effectiveFlow);
       return getTriples(
         api,
         entityUri,
@@ -59,8 +70,8 @@ export const useEntityDetail = (
         collection
       );
     },
-    // Only run query if both entityUri and flowId are available
-    enabled: !!entityUri && !!flowId,
+    // Only run query if both entityUri and effectiveFlow are available
+    enabled: !!entityUri && !!effectiveFlow,
   });
 
   // Show loading indicators for long-running operations

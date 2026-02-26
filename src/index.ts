@@ -17,6 +17,7 @@ export type {
   TripleTerm,
   ConnectionState,
   StreamingMetadata,
+  RowEmbeddingsMatch,
 } from "@trustgraph/client";
 
 // Provider and types

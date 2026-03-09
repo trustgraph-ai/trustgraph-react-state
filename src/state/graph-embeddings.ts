@@ -8,11 +8,11 @@ import { useSessionStore } from "./session";
 
 /**
  * Custom hook for querying graph embeddings
- * Finds graph entities similar to the provided embedding vectors
+ * Finds graph entities similar to the provided embedding vector
  */
-export const useGraphEmbeddings = ({ flow, vecs, limit = 10, collection }: {
+export const useGraphEmbeddings = ({ flow, vec, limit = 10, collection }: {
   flow?: string;
-  vecs?: number[][];
+  vec?: number[];
   limit?: number;
   collection?: string;
 }): {
@@ -31,12 +31,12 @@ export const useGraphEmbeddings = ({ flow, vecs, limit = 10, collection }: {
   const effectiveCollection = collection ?? settings.collection;
 
   const query = useQuery({
-    queryKey: ["graph-embeddings", { flow: effectiveFlow, vecs, limit, collection: effectiveCollection }],
-    enabled: !!vecs && vecs.length > 0 && !!effectiveFlow,
+    queryKey: ["graph-embeddings", { flow: effectiveFlow, vec, limit, collection: effectiveCollection }],
+    enabled: !!vec && vec.length > 0 && !!effectiveFlow,
     queryFn: () => {
       return socket
         .flow(effectiveFlow)
-        .graphEmbeddingsQuery(vecs!, limit, effectiveCollection)
+        .graphEmbeddingsQuery(vec!, limit, effectiveCollection)
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err);
           notify.error(message);

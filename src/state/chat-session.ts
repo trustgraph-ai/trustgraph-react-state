@@ -91,7 +91,10 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
       addActivity(embActivity);
 
       // Get labels for each entity
-      const labelPromises = result.entities.map(async (entity) => {
+      const labelPromises = result.entities
+        .filter((match) => match.entity !== null)
+        .map(async (match) => {
+        const entity = match.entity!;
         const labelActivity = "Label " + getTermValue(entity);
         addActivity(labelActivity);
 

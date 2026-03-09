@@ -41,7 +41,7 @@ export const useEmbeddings = ({ flow, term }) => {
     queryFn: () => {
       return socket
         .flow(effectiveFlow)
-        .embeddings(term)
+        .embeddings([term])
         .then((x) => {
           if (x["error"]) {
             console.log("Error:", x);

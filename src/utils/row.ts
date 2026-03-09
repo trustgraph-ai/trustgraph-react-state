@@ -150,13 +150,13 @@ export const addRowEmbeddings =
         add(act);
 
         return socket
-          .embeddings(text)
+          .embeddings([text])
           .then((x) => {
-            if (x && x.length > 0) {
+            if (x && x.length > 0 && x[0].length > 0) {
               remove(act);
               return {
                 ...ent,
-                embeddings: x[0],
+                embeddings: x[0][0],
               };
             } else {
               remove(act);

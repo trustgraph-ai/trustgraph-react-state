@@ -18,6 +18,8 @@ export type {
   ConnectionState,
   StreamingMetadata,
   RowEmbeddingsMatch,
+  ChunkedUploadDocumentMetadata,
+  UploadSession,
 } from "@trustgraph/client";
 
 // Provider and types
@@ -84,6 +86,22 @@ export {
   useParameterValidation,
 } from "./state/flow-parameters";
 export { useNodeDetails } from "./state/node-details";
+export { useChunkedUpload } from "./state/chunked-upload";
+export type {
+  UploadStatus,
+  UploadProgress,
+  ChunkedUploadOptions,
+  ChunkedUploadParams,
+  ResumeUploadParams,
+} from "./state/chunked-upload";
+export { useChunkedDownload } from "./state/chunked-download";
+export type {
+  DownloadStatus,
+  DownloadProgress,
+  ChunkedDownloadOptions,
+  DownloadParams,
+} from "./state/chunked-download";
+export type { StreamDocumentResponse } from "@trustgraph/client";
 
 // Model types
 export type { Entity } from "./model/entity";

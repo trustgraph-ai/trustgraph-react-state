@@ -83,7 +83,8 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
         : await socket.flow(effectiveFlow).graphRag(input, options || {}, collection);
 
       // Get embeddings for entity discovery
-      const embeddings = await socket.flow(effectiveFlow).embeddings(input);
+      const allEmbeddings = await socket.flow(effectiveFlow).embeddings([input]);
+      const embeddings = allEmbeddings[0];
 
       // Query graph embeddings to find entities
       const entities = await socket

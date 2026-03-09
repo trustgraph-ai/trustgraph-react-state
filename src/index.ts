@@ -94,6 +94,14 @@ export type {
   ChunkedUploadParams,
   ResumeUploadParams,
 } from "./state/chunked-upload";
+export { useChunkedDownload } from "./state/chunked-download";
+export type {
+  DownloadStatus,
+  DownloadProgress,
+  ChunkedDownloadOptions,
+  DownloadParams,
+} from "./state/chunked-download";
+export type { StreamDocumentResponse } from "@trustgraph/client";
 
 // Model types
 export type { Entity } from "./model/entity";

@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { useRef, useCallback } from "react";
 import { useNotification } from "../hooks/useNotification";
 import { useActivity } from "../hooks/useActivity";
 import { useConversation } from "./conversation";
@@ -10,6 +11,8 @@ import { RDFS_LABEL, getTermValue } from "../utils/knowledge-graph";
 import { Entity } from "../model/entity";
 import { useSocket } from "@trustgraph/react-provider";
 import { useSessionStore } from "./session";
+import { useExplainabilityStore } from "./explainability-store";
+import { useExplainability } from "./explainability";
 import type { Triple } from "@trustgraph/client";
 
 /**
@@ -43,6 +46,22 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
   // Settings for GraphRAG configuration
   const { settings } = useSettings();
 
+  // Explainability store for persisting sessions
+  const addExplainSession = useExplainabilityStore((state) => state.addSession);
+
+  // Explainability hook for processing events (processes each event immediately)
+  const explainability = useExplainability({
+    flow: effectiveFlow,
+    collection: settings.collection,
+  });
+  const explainabilityRef = useRef(explainability);
+  explainabilityRef.current = explainability;
+
+  // Generate unique session IDs
+  const generateSessionId = useCallback(() => {
+    return `explain-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
+
   // Inference services
   const inference = useInference({ flow });
 
@@ -57,6 +76,15 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
 
     let accumulated = "";
     let messageAdded = false;
+
+    // Check if explainability is enabled
+    const explainabilityEnabled = settings.featureSwitches.explainability;
+    const sessionId = explainabilityEnabled ? generateSessionId() : undefined;
+
+    // Reset explainability state for new query
+    if (explainabilityEnabled) {
+      explainabilityRef.current.reset();
+    }
 
     try {
       // Execute Graph RAG with streaming and entity discovery
@@ -74,18 +102,42 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
             accumulated += chunk;
 
             if (!messageAdded) {
-              // Add empty message on first chunk
-              addMessage("ai", accumulated);
+              // Add empty message on first chunk (with session ID if enabled)
+              addMessage("ai", accumulated, undefined, sessionId);
               messageAdded = true;
             } else {
               // Update existing message with accumulated text
               updateLastMessage(accumulated);
             }
           },
+          // Wire up explainability callback if feature is enabled
+          ...(explainabilityEnabled && {
+            onExplain: (event) => {
+              console.log("[explain] event received:", event.explainId);
+              explainabilityRef.current.addEvent(event);
+            },
+          }),
         },
       });
 
       removeActivity(ragActivity);
+
+      // Store explainability session progressively — events are already being
+      // processed as they arrive. Wait for processing to finish, then snapshot.
+      if (explainabilityEnabled && sessionId) {
+        const waitAndStore = async () => {
+          // Poll until processing completes (events are processed as they arrive)
+          const maxWait = 30000;
+          let elapsed = 0;
+          while (explainabilityRef.current.isProcessingRef.current && elapsed < maxWait) {
+            await new Promise((r) => setTimeout(r, 500));
+            elapsed += 500;
+          }
+          const sess = explainabilityRef.current.sessionRef.current;
+          addExplainSession(sessionId, sess);
+        };
+        waitAndStore();
+      }
 
       // Start embeddings activity
       addActivity(embActivity);

@@ -21,6 +21,7 @@ export interface Settings {
     flowBlueprintEditor: boolean;
     structuredQuery: boolean;
     llmModels: boolean;
+    explainability: boolean;
   };
 }
 
@@ -47,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
     flowBlueprintEditor: false, // Off by default - experimental feature
     structuredQuery: false, // Off by default
     llmModels: false, // Off by default
+    explainability: true, // On by default
   },
 };
 

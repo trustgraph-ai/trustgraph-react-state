@@ -20,6 +20,37 @@ export type {
   RowEmbeddingsMatch,
   ChunkedUploadDocumentMetadata,
   UploadSession,
+  ExplainEvent,
+  DocumentMetadata,
+} from "@trustgraph/client";
+
+// Re-export namespace constants from client
+export {
+  TG,
+  TG_QUERY,
+  TG_EDGE_COUNT,
+  TG_SELECTED_EDGE,
+  TG_EDGE,
+  TG_REASONING,
+  TG_CONTENT,
+  TG_REIFIES,
+  TG_DOCUMENT,
+  PROV,
+  PROV_STARTED_AT_TIME,
+  PROV_WAS_DERIVED_FROM,
+  PROV_WAS_GENERATED_BY,
+  PROV_ACTIVITY,
+  PROV_ENTITY,
+  RDFS,
+  RDF,
+  RDF_TYPE,
+  SCHEMA,
+  SCHEMA_NAME,
+  SCHEMA_DESCRIPTION,
+  SCHEMA_AUTHOR,
+  SCHEMA_KEYWORDS,
+  SKOS,
+  SKOS_DEFINITION,
 } from "@trustgraph/client";
 
 // Provider and types
@@ -102,6 +133,47 @@ export type {
   DownloadParams,
 } from "./state/chunked-download";
 export type { StreamDocumentResponse } from "@trustgraph/client";
+
+// Explainability and provenance hooks
+export { useExplainability } from "./state/explainability";
+export type {
+  UseExplainabilityOptions,
+  UseExplainabilityResult,
+  ExplainabilitySession,
+  QuestionEvent,
+  ExplorationEvent,
+  FocusEvent,
+  SynthesisEvent,
+  SelectedEdge,
+  ProvenanceChain,
+  ProvenanceChainItem,
+} from "./state/explainability";
+export { useExplainabilityStore } from "./state/explainability-store";
+export type { ExplainabilityStoreState } from "./state/explainability-store";
+export { useProvenance } from "./state/provenance";
+export type {
+  UseProvenanceOptions,
+  UseProvenanceResult,
+} from "./state/provenance";
+export { useDocumentMetadata, useDocumentsMetadata } from "./state/document-metadata";
+export type {
+  UseDocumentMetadataOptions,
+  UseDocumentMetadataResult,
+} from "./state/document-metadata";
+
+// Explainability utilities
+export {
+  getEventType,
+  getTermValue as getExplainTermValue,
+  extractQuotedTriple,
+  parseExplainTriples,
+  parseQuestionTriples,
+  parseExplorationTriples,
+  parseFocusTriples,
+  parseSynthesisTriples,
+  parseEdgeSelectionTriples,
+} from "./utils/explainability";
+export type { ExplainEventType } from "./utils/explainability";
 
 // Model types
 export type { Entity } from "./model/entity";

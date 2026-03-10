@@ -12,9 +12,10 @@ export interface ConversationState {
   addMessage: (
     role: string,
     text: string,
-    type?: "normal" | "thinking" | "observation" | "answer"
+    type?: "normal" | "thinking" | "observation" | "answer",
+    explainSessionId?: string
   ) => void;
-  updateLastMessage: (text: string) => void;
+  updateLastMessage: (text: string, explainSessionId?: string) => void;
   setInput: (v: string) => void;
   setChatMode: (mode: ChatMode) => void;
 }
@@ -34,7 +35,8 @@ export const useConversation = create<ConversationState>()((set) => ({
   addMessage: (
     role: string,
     text: string,
-    type?: "normal" | "thinking" | "observation" | "answer"
+    type?: "normal" | "thinking" | "observation" | "answer",
+    explainSessionId?: string
   ) =>
     set((state) => ({
       messages: [
@@ -43,17 +45,19 @@ export const useConversation = create<ConversationState>()((set) => ({
           role: role,
           text: text,
           type: type || "normal",
+          explainSessionId,
         },
       ],
     })),
 
-  updateLastMessage: (text: string) =>
+  updateLastMessage: (text: string, explainSessionId?: string) =>
     set((state) => {
       if (state.messages.length === 0) return state;
       const messages = [...state.messages];
       messages[messages.length - 1] = {
         ...messages[messages.length - 1],
         text: text,
+        ...(explainSessionId !== undefined && { explainSessionId }),
       };
       return { messages };
     }),

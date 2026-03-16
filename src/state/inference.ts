@@ -31,7 +31,19 @@ export interface AgentCallbacks {
   onThink?: (thought: string, complete?: boolean) => void;
   onObserve?: (observation: string, complete?: boolean) => void;
   onAnswer?: (answer: string, complete?: boolean) => void;
+  onExplain?: (event: ExplainEvent) => void;
   onError?: (error: string) => void;
+}
+
+export interface DocumentRagCallbacks {
+  onChunk?: (chunk: string, complete: boolean) => void;
+  onExplain?: (event: ExplainEvent) => void;
+  onError?: (error: string) => void;
+}
+
+export interface DocumentRagResult {
+  response: string;
+  explainEvents?: ExplainEvent[];
 }
 
 /**
@@ -154,7 +166,57 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
   });
 
   /**
-   * Agent inference with streaming callbacks
+   * Document RAG inference with optional explainability
+   */
+  const documentRagMutation = useMutation({
+    mutationFn: async ({
+      input,
+      collection,
+      docLimit,
+      callbacks,
+    }: {
+      input: string;
+      collection: string;
+      docLimit?: number;
+      callbacks?: DocumentRagCallbacks;
+    }): Promise<DocumentRagResult> => {
+      const wantsExplainability = !!callbacks?.onExplain;
+      const explainEvents: ExplainEvent[] | undefined = wantsExplainability ? [] : undefined;
+
+      const response = await new Promise<string>((resolve, reject) => {
+        let accumulated = "";
+
+        const onChunk = (chunk: string, complete: boolean) => {
+          accumulated += chunk;
+          callbacks?.onChunk?.(chunk, complete);
+          if (complete) {
+            resolve(accumulated);
+          }
+        };
+
+        const onError = (error: string) => {
+          callbacks?.onError?.(error);
+          reject(new Error(error));
+        };
+
+        const onExplain = wantsExplainability
+          ? (event: ExplainEvent) => {
+              explainEvents!.push(event);
+              callbacks.onExplain!(event);
+            }
+          : undefined;
+
+        socket
+          .flow(effectiveFlow)
+          .documentRagStreaming(input, onChunk, onError, docLimit, collection, onExplain);
+      });
+
+      return { response, explainEvents };
+    },
+  });
+
+  /**
+   * Agent inference with streaming callbacks and optional explainability
    */
   const agentMutation = useMutation({
     mutationFn: async ({
@@ -164,6 +226,9 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
       input: string;
       callbacks?: AgentCallbacks;
     }): Promise<string> => {
+      const wantsExplainability = !!callbacks?.onExplain;
+      const explainEvents: ExplainEvent[] | undefined = wantsExplainability ? [] : undefined;
+
       return new Promise<string>((resolve, reject) => {
         let fullAnswer = "";
 
@@ -188,19 +253,28 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
           reject(new Error(error));
         };
 
+        const onExplain = wantsExplainability
+          ? (event: ExplainEvent) => {
+              explainEvents!.push(event);
+              callbacks.onExplain!(event);
+            }
+          : undefined;
+
         socket
           .flow(effectiveFlow)
-          .agent(input, onThink, onObserve, onAnswer, onError);
+          .agent(input, onThink, onObserve, onAnswer, onError, onExplain);
       });
     },
   });
 
   return {
     graphRag: graphRagMutation.mutateAsync,
+    documentRag: documentRagMutation.mutateAsync,
     textCompletion: textCompletionMutation.mutateAsync,
     agent: agentMutation.mutateAsync,
     isLoading:
       graphRagMutation.isPending ||
+      documentRagMutation.isPending ||
       textCompletionMutation.isPending ||
       agentMutation.isPending,
   };

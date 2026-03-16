@@ -92,6 +92,8 @@ export type {
   GraphRagCallbacks,
   TextCompletionCallbacks,
   AgentCallbacks,
+  DocumentRagCallbacks,
+  DocumentRagResult,
 } from "./state/inference";
 export { useChatSession, useChat } from "./state/chat-session";
 export { useStructuredQuery } from "./state/structured-query";

@@ -32,7 +32,7 @@ export const useRowEmbeddingsQuery = ({ flow }: { flow?: string } = {}) => {
       indexName,
       limit = 10,
     }: {
-      vectors: number[][];
+      vectors: number[];
       schemaName: string;
       collection?: string;
       indexName?: string;

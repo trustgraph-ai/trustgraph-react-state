@@ -28,9 +28,9 @@ export interface TextCompletionCallbacks {
 }
 
 export interface AgentCallbacks {
-  onThink?: (thought: string, complete?: boolean) => void;
-  onObserve?: (observation: string, complete?: boolean) => void;
-  onAnswer?: (answer: string, complete?: boolean) => void;
+  onThink?: (thought: string, complete: boolean, messageId?: string) => void;
+  onObserve?: (observation: string, complete: boolean, messageId?: string) => void;
+  onAnswer?: (answer: string, complete: boolean, messageId?: string) => void;
   onExplain?: (event: ExplainEvent) => void;
   onError?: (error: string) => void;
 }
@@ -221,9 +221,11 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
   const agentMutation = useMutation({
     mutationFn: async ({
       input,
+      collection,
       callbacks,
     }: {
       input: string;
+      collection?: string;
       callbacks?: AgentCallbacks;
     }): Promise<string> => {
       const wantsExplainability = !!callbacks?.onExplain;
@@ -232,17 +234,17 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
       return new Promise<string>((resolve, reject) => {
         let fullAnswer = "";
 
-        const onThink = (thought: string, complete: boolean) => {
-          callbacks?.onThink?.(thought, complete);
+        const onThink = (thought: string, complete: boolean, messageId?: string) => {
+          callbacks?.onThink?.(thought, complete, messageId);
         };
 
-        const onObserve = (observation: string, complete: boolean) => {
-          callbacks?.onObserve?.(observation, complete);
+        const onObserve = (observation: string, complete: boolean, messageId?: string) => {
+          callbacks?.onObserve?.(observation, complete, messageId);
         };
 
-        const onAnswer = (answer: string, complete: boolean) => {
+        const onAnswer = (answer: string, complete: boolean, messageId?: string) => {
           fullAnswer += answer;
-          callbacks?.onAnswer?.(answer, complete);
+          callbacks?.onAnswer?.(answer, complete, messageId);
           if (complete) {
             resolve(fullAnswer);
           }
@@ -262,7 +264,7 @@ export const useInference = ({ flow }: { flow?: string } = {}) => {
 
         socket
           .flow(effectiveFlow)
-          .agent(input, onThink, onObserve, onAnswer, onError, onExplain);
+          .agent(input, onThink, onObserve, onAnswer, onError, onExplain, collection);
       });
     },
   });

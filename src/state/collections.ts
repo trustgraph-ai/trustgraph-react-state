@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 
 import { useSocket, useConnectionState } from "@trustgraph/react-provider";
@@ -18,10 +17,22 @@ export interface CollectionMetadata {
   updated_at: string;
 }
 
+interface UpdateCollectionParams {
+  collection: string;
+  name: string;
+  description: string;
+  tags: string[];
+  onSuccess?: () => void;
+}
+
+interface DeleteCollectionsParams {
+  collections: string[];
+  onSuccess?: () => void;
+}
+
 /**
  * Custom hook for managing collection operations
  * Provides functionality for fetching, creating, updating, and deleting collections
- * @returns {Object} Collections state and operations
  */
 export const useCollections = () => {
   // WebSocket connection for communicating with the collection management service
@@ -56,7 +67,7 @@ export const useCollections = () => {
    * Executes update request and handles success/error states
    */
   const updateCollectionMutation = useMutation({
-    mutationFn: ({ collection, name, description, tags, onSuccess }) => {
+    mutationFn: ({ collection, name, description, tags, onSuccess }: UpdateCollectionParams) => {
       return socket
         .collectionManagement()
         .updateCollection(collection, name, description, tags)
@@ -65,7 +76,7 @@ export const useCollections = () => {
           if (onSuccess) onSuccess();
         });
     },
-    onError: (err) => {
+    onError: (err: Error) => {
       console.log("Error:", err);
       // Show error notification to user
       notify.error(err.toString());
@@ -83,7 +94,7 @@ export const useCollections = () => {
    * Executes parallel deletion requests and handles success/error states
    */
   const deleteCollectionsMutation = useMutation({
-    mutationFn: ({ collections, onSuccess }) => {
+    mutationFn: ({ collections, onSuccess }: DeleteCollectionsParams) => {
       // Execute deletion requests in parallel for all collection IDs
       return Promise.all(
         collections.map((collection) =>
@@ -94,7 +105,7 @@ export const useCollections = () => {
         if (onSuccess) onSuccess();
       });
     },
-    onError: (err) => {
+    onError: (err: Error) => {
       console.log("Error:", err);
       // Show error notification to user
       notify.error(err.toString());

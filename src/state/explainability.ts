@@ -25,6 +25,7 @@ import {
   type FocusEvent,
   type SynthesisEvent,
   type SelectedEdge,
+  type ProvenanceChainItem,
 } from "../utils/explainability";
 
 export interface UseExplainabilityOptions {
@@ -165,62 +166,96 @@ export const useExplainability = (
     []
   );
 
-  const AGENT_EVENT_TYPES = new Set([
+  const AGENT_STEP_TYPES = new Set([
     "agent-question", "decomposition", "analysis", "reflection", "conclusion",
+    "grounding",
   ]);
+
+  /**
+   * Resolve labels for inline edges (edges already extracted, just need labels)
+   */
+  const resolveEdgeLabels = useCallback(
+    async (focusEvent: FocusEvent): Promise<FocusEvent> => {
+      if (!focusEvent.selectedEdges || focusEvent.selectedEdges.length === 0) {
+        return focusEvent;
+      }
+
+      const resolved = await Promise.all(
+        focusEvent.selectedEdges.map(async (se) => {
+          const [sLabel, pLabel, oLabel] = await Promise.all([
+            resolveLabel(se.edge.s),
+            resolveLabel(se.edge.p),
+            resolveLabel(se.edge.o),
+          ]);
+
+          let sources: ProvenanceChainItem[] | undefined;
+          if (traceProvenance) {
+            const chains = await traceEdgeProvenance(se.edge.s, se.edge.p, se.edge.o);
+            if (chains.length > 0) {
+              sources = chains.map((c) => c.chain).flat();
+            }
+          }
+
+          return {
+            ...se,
+            labels: { s: sLabel, p: pLabel, o: oLabel },
+            sources,
+          };
+        })
+      );
+
+      return { ...focusEvent, selectedEdges: resolved };
+    },
+    [resolveLabel, traceProvenance, traceEdgeProvenance]
+  );
 
   /**
    * Process a single explain event
    */
   const processEvent = useCallback(
     async (event: ExplainEvent): Promise<void> => {
-      // Use embedded triples directly from the event
       const triples = event.explainTriples ?? [];
 
-      // Parse into structured data
       const parsed = parseExplainTriples(event.explainId, event.explainGraph, triples);
       if (!parsed) return;
 
-      if (AGENT_EVENT_TYPES.has(parsed.type)) {
-        // Agent event — append to timeline
+      if (AGENT_STEP_TYPES.has(parsed.type)) {
+        // Agent step — append to timeline
         updateSession((prev) => ({
           ...prev,
           agentSteps: [...(prev.agentSteps || []), parsed],
         }));
-      } else {
-        // Graph-RAG event — populate fixed fields
-        updateSession((prev) => {
-          const next = { ...prev };
+      }
 
-          switch (parsed.type) {
-            case "question":
-              next.question = parsed as QuestionEvent;
-              break;
-            case "exploration":
-              next.exploration = parsed as ExplorationEvent;
-              break;
-            case "focus":
-              next.focus = parsed as FocusEvent;
-              break;
-            case "synthesis":
-              next.synthesis = parsed as SynthesisEvent;
-              break;
+      // Graph-RAG fields — populate regardless (agent produces these too)
+      switch (parsed.type) {
+        case "question":
+          updateSession((prev) => ({ ...prev, question: parsed as QuestionEvent }));
+          break;
+        case "exploration":
+          updateSession((prev) => ({ ...prev, exploration: parsed as ExplorationEvent }));
+          break;
+        case "focus": {
+          updateSession((prev) => ({ ...prev, focus: parsed as FocusEvent }));
+          // Resolve labels for inline edges, or unpack old-format edges
+          const focusEvent = parsed as FocusEvent;
+          if (focusEvent.selectedEdges && focusEvent.selectedEdges.length > 0) {
+            // New format: edges already extracted, resolve labels
+            const resolved = await resolveEdgeLabels(focusEvent);
+            updateSession((prev) => ({ ...prev, focus: resolved }));
+          } else if (focusEvent.edgeSelectionUris.length > 0) {
+            // Old format: unpack edge selection URIs
+            const unpacked = await unpackFocusEvent(focusEvent, triples);
+            updateSession((prev) => ({ ...prev, focus: unpacked }));
           }
-
-          return next;
-        });
-
-        // For focus events, unpack edges (labels still need store lookup)
-        if (parsed.type === "focus") {
-          const unpackedFocus = await unpackFocusEvent(parsed as FocusEvent, triples);
-          updateSession((prev) => ({
-            ...prev,
-            focus: unpackedFocus,
-          }));
+          break;
         }
+        case "synthesis":
+          updateSession((prev) => ({ ...prev, synthesis: parsed as SynthesisEvent }));
+          break;
       }
     },
-    [unpackFocusEvent, updateSession]
+    [unpackFocusEvent, resolveEdgeLabels, updateSession]
   );
 
   /**
@@ -304,4 +339,5 @@ export type {
   AnalysisEvent,
   ReflectionEvent,
   ConclusionEvent,
+  GroundingEvent,
 } from "../utils/explainability";

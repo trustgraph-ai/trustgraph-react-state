@@ -1,6 +1,7 @@
 /**
  * Hook for tracing provenance chains in the knowledge graph
- * Follows prov:wasDerivedFrom relationships from any entity to its source documents
+ * Follows tg:contains to find subgraphs, then prov:wasDerivedFrom
+ * to trace chunk → page → document chains
  */
 
 import { useState, useCallback, useRef } from "react";
@@ -8,12 +9,14 @@ import { useSocket, useConnectionState } from "@trustgraph/react-provider";
 import { useSessionStore } from "./session";
 import type { Triple, Term } from "@trustgraph/client";
 import {
+  TG,
   PROV_WAS_DERIVED_FROM,
   RDFS_LABEL,
-  TG_REIFIES,
 } from "@trustgraph/client";
 import type { ProvenanceChain, ProvenanceChainItem } from "../utils/explainability";
 import { getTermValue } from "../utils/explainability";
+
+const TG_CONTAINS = TG + "contains";
 
 export interface UseProvenanceOptions {
   flow?: string;
@@ -25,7 +28,7 @@ export interface UseProvenanceOptions {
 export interface UseProvenanceResult {
   /** Trace provenance chain from a URI to root */
   traceChain: (uri: string) => Promise<ProvenanceChain>;
-  /** Trace provenance for an edge (s, p, o) - finds reifying statements first */
+  /** Trace provenance for an edge (s, p, o) - finds containing subgraph first */
   traceEdgeProvenance: (s: string, p: string, o: string) => Promise<ProvenanceChain[]>;
   /** Resolve label for a URI (uses cache) */
   resolveLabel: (uri: string) => Promise<string>;
@@ -171,14 +174,14 @@ export const useProvenance = (options: UseProvenanceOptions = {}): UseProvenance
   );
 
   /**
-   * Query for statements that reify an edge via tg:reifies
+   * Find subgraphs that contain an edge via tg:contains with a quoted triple
    */
-  const queryReifyingStatements = useCallback(
+  const queryContainingSubgraphs = useCallback(
     async (s: string, p: string, o: string): Promise<string[]> => {
       if (!isConnected()) return [];
 
       try {
-        // Build the quoted triple term
+        // Build the quoted triple term for the edge
         const quotedTriple: Term = {
           t: "t",
           tr: {
@@ -194,7 +197,7 @@ export const useProvenance = (options: UseProvenanceOptions = {}): UseProvenance
           .flow(effectiveFlow)
           .triplesQuery(
             undefined,
-            { t: "i", i: TG_REIFIES },
+            { t: "i", i: TG_CONTAINS },
             quotedTriple,
             10,
             collection
@@ -209,24 +212,25 @@ export const useProvenance = (options: UseProvenanceOptions = {}): UseProvenance
   );
 
   /**
-   * Trace provenance for an edge - finds reifying statements and traces each
+   * Trace provenance for an edge — find containing subgraph, then follow
+   * wasDerivedFrom chain: subgraph → chunk → page → document
    */
   const traceEdgeProvenance = useCallback(
     async (s: string, p: string, o: string): Promise<ProvenanceChain[]> => {
       setIsTracing(true);
 
       try {
-        // Find statements that reify this edge
-        const stmtUris = await queryReifyingStatements(s, p, o);
+        // Find subgraphs containing this edge
+        const subgraphUris = await queryContainingSubgraphs(s, p, o);
 
-        // For each reifying statement, trace its provenance chain
         const chains: ProvenanceChain[] = [];
 
-        for (const stmtUri of stmtUris) {
-          // Get the wasDerivedFrom source for this statement
-          const sourceUri = await queryDerivedFrom(stmtUri);
-          if (sourceUri) {
-            const chain = await traceChain(sourceUri);
+        for (const subgraphUri of subgraphUris) {
+          // Follow wasDerivedFrom from the subgraph to the chunk
+          const chunkUri = await queryDerivedFrom(subgraphUri);
+          if (chunkUri) {
+            // Trace the full chain from chunk upward
+            const chain = await traceChain(chunkUri);
             chains.push(chain);
           }
         }
@@ -236,7 +240,7 @@ export const useProvenance = (options: UseProvenanceOptions = {}): UseProvenance
         setIsTracing(false);
       }
     },
-    [queryReifyingStatements, queryDerivedFrom, traceChain]
+    [queryContainingSubgraphs, queryDerivedFrom, traceChain]
   );
 
   /**

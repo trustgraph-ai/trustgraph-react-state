@@ -155,6 +155,7 @@ export type {
   AnalysisEvent,
   ReflectionEvent,
   ConclusionEvent,
+  GroundingEvent,
 } from "./state/explainability";
 export { useExplainabilityStore } from "./state/explainability-store";
 export type { ExplainabilityStoreState } from "./state/explainability-store";

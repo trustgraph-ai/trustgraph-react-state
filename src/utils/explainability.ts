@@ -4,6 +4,7 @@
 
 import type { Triple, Term } from "@trustgraph/client";
 import {
+  TG,
   TG_QUERY,
   TG_EDGE_COUNT,
   TG_SELECTED_EDGE,
@@ -12,12 +13,36 @@ import {
   TG_CONTENT,
   PROV_STARTED_AT_TIME,
   PROV_WAS_DERIVED_FROM,
+  RDF_TYPE,
+  RDFS_LABEL,
 } from "@trustgraph/client";
 
-// Event types derived from explain_id URI
-export type ExplainEventType = "question" | "exploration" | "focus" | "synthesis" | "unknown";
+// Agent-specific predicates (not yet in client library)
+const TG_ACTION = TG + "action";
+const TG_ARGUMENTS = TG + "arguments";
+const TG_SUBAGENT_GOAL = TG + "subagentGoal";
 
-// Structured data for each event type
+// RDF type URIs for agent events
+const TG_AGENT_QUESTION = TG + "AgentQuestion";
+const TG_ANALYSIS = TG + "Analysis";
+const TG_TOOL_USE = TG + "ToolUse";
+const TG_OBSERVATION = TG + "Observation";
+const TG_THOUGHT_TYPE = TG + "Thought";
+const TG_REFLECTION_TYPE = TG + "Reflection";
+const TG_CONCLUSION = TG + "Conclusion";
+const TG_ANSWER = TG + "Answer";
+const TG_FINDING = TG + "Finding";
+const TG_SYNTHESIS_TYPE = TG + "Synthesis";
+const TG_DECOMPOSITION = TG + "Decomposition";
+
+// ── Graph-RAG event types (existing) ────────────────────────────────
+
+export type ExplainEventType =
+  | "question" | "exploration" | "focus" | "synthesis"
+  | "agent-question" | "decomposition" | "analysis" | "reflection" | "conclusion"
+  | "unknown";
+
+// ── Graph-RAG structured events (existing) ──────────────────────────
 
 export interface QuestionEvent {
   type: "question";
@@ -71,11 +96,65 @@ export interface SynthesisEvent {
   contentLength?: number;
 }
 
+// ── Agent structured events (new) ───────────────────────────────────
+
+export interface AgentQuestionEvent {
+  type: "agent-question";
+  explainId: string;
+  explainGraph: string;
+  query?: string;
+  label?: string;
+  timestamp?: string;
+  derivedFrom?: string[];
+}
+
+export interface DecompositionEvent {
+  type: "decomposition";
+  explainId: string;
+  explainGraph: string;
+  label?: string;
+  goals: string[];
+  derivedFrom?: string[];
+}
+
+export interface AnalysisEvent {
+  type: "analysis";
+  explainId: string;
+  explainGraph: string;
+  label?: string;
+  action?: string;
+  arguments?: string;
+  derivedFrom?: string[];
+}
+
+export interface ReflectionEvent {
+  type: "reflection";
+  explainId: string;
+  explainGraph: string;
+  label?: string;
+  derivedFrom?: string[];
+}
+
+export interface ConclusionEvent {
+  type: "conclusion";
+  explainId: string;
+  explainGraph: string;
+  label?: string;
+  derivedFrom?: string[];
+}
+
+// ── Union types ─────────────────────────────────────────────────────
+
 export type StructuredExplainEvent =
   | QuestionEvent
   | ExplorationEvent
   | FocusEvent
-  | SynthesisEvent;
+  | SynthesisEvent
+  | AgentQuestionEvent
+  | DecompositionEvent
+  | AnalysisEvent
+  | ReflectionEvent
+  | ConclusionEvent;
 
 // Provenance chain types
 
@@ -96,15 +175,19 @@ export interface ProvenanceChain {
 // Full explainability session data
 
 export interface ExplainabilitySession {
+  // Graph-RAG fields
   question?: QuestionEvent;
   exploration?: ExplorationEvent;
   focus?: FocusEvent;
   synthesis?: SynthesisEvent;
+  // Agent fields — ordered timeline of events
+  agentSteps?: StructuredExplainEvent[];
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────
+
 /**
- * Extract event type from explainId URI
- * e.g., "urn:trustgraph:question:abc123" → "question"
+ * Extract event type from explainId URI (graph-rag only)
  */
 export function getEventType(explainId: string): ExplainEventType {
   if (explainId.includes("question")) return "question";
@@ -145,9 +228,62 @@ export function extractQuotedTriple(term: Term): { s: string; p: string; o: stri
   return null;
 }
 
+// ── Agent event type detection ──────────────────────────────────────
+
+/** Map RDF type URI → agent event type (first match wins) */
+const AGENT_TYPE_CHECKS: [string, ExplainEventType][] = [
+  [TG_AGENT_QUESTION, "agent-question"],
+  [TG_DECOMPOSITION, "decomposition"],
+  [TG_ANALYSIS, "analysis"],
+  [TG_TOOL_USE, "analysis"],
+  [TG_OBSERVATION, "reflection"],
+  [TG_THOUGHT_TYPE, "reflection"],
+  [TG_REFLECTION_TYPE, "reflection"],
+  [TG_CONCLUSION, "conclusion"],
+  [TG_FINDING, "conclusion"],
+  [TG_SYNTHESIS_TYPE, "conclusion"],
+  [TG_ANSWER, "conclusion"],
+];
+
 /**
- * Parse triples for a question event
+ * Detect event type from RDF types in embedded triples.
+ * Returns an agent event type if matched, "unknown" otherwise.
  */
+export function getEventTypeFromTriples(triples: Triple[]): ExplainEventType {
+  const types = new Set<string>();
+  for (const t of triples) {
+    if (getTermValue(t.p) === RDF_TYPE) {
+      types.add(getTermValue(t.o));
+    }
+  }
+
+  for (const [typeUri, eventType] of AGENT_TYPE_CHECKS) {
+    if (types.has(typeUri)) return eventType;
+  }
+
+  return "unknown";
+}
+
+/** Extract common fields (label, derivedFrom) from triples */
+function extractCommonFields(triples: Triple[]): {
+  label?: string;
+  derivedFrom: string[];
+} {
+  const derivedFrom: string[] = [];
+  let label: string | undefined;
+
+  for (const t of triples) {
+    const p = getTermValue(t.p);
+    const o = getTermValue(t.o);
+    if (p === RDFS_LABEL && o) label = o;
+    if (p === PROV_WAS_DERIVED_FROM && o) derivedFrom.push(o);
+  }
+
+  return { label, derivedFrom };
+}
+
+// ── Graph-RAG parsers (existing) ────────────────────────────────────
+
 export function parseQuestionTriples(
   explainId: string,
   explainGraph: string,
@@ -173,9 +309,6 @@ export function parseQuestionTriples(
   return event;
 }
 
-/**
- * Parse triples for an exploration event
- */
 export function parseExplorationTriples(
   explainId: string,
   explainGraph: string,
@@ -199,9 +332,6 @@ export function parseExplorationTriples(
   return event;
 }
 
-/**
- * Parse triples for a focus event
- */
 export function parseFocusTriples(
   explainId: string,
   explainGraph: string,
@@ -226,9 +356,6 @@ export function parseFocusTriples(
   return event;
 }
 
-/**
- * Parse triples for a synthesis event
- */
 export function parseSynthesisTriples(
   explainId: string,
   explainGraph: string,
@@ -252,9 +379,6 @@ export function parseSynthesisTriples(
   return event;
 }
 
-/**
- * Parse triples for an edge selection entity
- */
 export function parseEdgeSelectionTriples(triples: Triple[]): {
   edge: { s: string; p: string; o: string } | null;
   reasoning: string | null;
@@ -275,16 +399,143 @@ export function parseEdgeSelectionTriples(triples: Triple[]): {
   return { edge, reasoning };
 }
 
+// ── Agent parsers (new) ─────────────────────────────────────────────
+
+function parseAgentQuestionTriples(
+  explainId: string,
+  explainGraph: string,
+  triples: Triple[]
+): AgentQuestionEvent {
+  const { label, derivedFrom } = extractCommonFields(triples);
+  const event: AgentQuestionEvent = {
+    type: "agent-question",
+    explainId,
+    explainGraph,
+    label,
+    derivedFrom,
+  };
+
+  for (const t of triples) {
+    const p = getTermValue(t.p);
+    const o = getTermValue(t.o);
+    if (p === TG_QUERY) event.query = o;
+    if (p === PROV_STARTED_AT_TIME) event.timestamp = o;
+  }
+
+  return event;
+}
+
+function parseDecompositionTriples(
+  explainId: string,
+  explainGraph: string,
+  triples: Triple[]
+): DecompositionEvent {
+  const { label, derivedFrom } = extractCommonFields(triples);
+  const goals: string[] = [];
+
+  for (const t of triples) {
+    const p = getTermValue(t.p);
+    const o = getTermValue(t.o);
+    if (p === TG_SUBAGENT_GOAL && o) goals.push(o);
+  }
+
+  return {
+    type: "decomposition",
+    explainId,
+    explainGraph,
+    label,
+    goals,
+    derivedFrom,
+  };
+}
+
+function parseAnalysisTriples(
+  explainId: string,
+  explainGraph: string,
+  triples: Triple[]
+): AnalysisEvent {
+  const { label, derivedFrom } = extractCommonFields(triples);
+  const event: AnalysisEvent = {
+    type: "analysis",
+    explainId,
+    explainGraph,
+    label,
+    derivedFrom,
+  };
+
+  for (const t of triples) {
+    const p = getTermValue(t.p);
+    const o = getTermValue(t.o);
+    if (p === TG_ACTION) event.action = o;
+    if (p === TG_ARGUMENTS) event.arguments = o;
+  }
+
+  return event;
+}
+
+function parseReflectionTriples(
+  explainId: string,
+  explainGraph: string,
+  triples: Triple[]
+): ReflectionEvent {
+  const { label, derivedFrom } = extractCommonFields(triples);
+  return {
+    type: "reflection",
+    explainId,
+    explainGraph,
+    label,
+    derivedFrom,
+  };
+}
+
+function parseConclusionTriples(
+  explainId: string,
+  explainGraph: string,
+  triples: Triple[]
+): ConclusionEvent {
+  const { label, derivedFrom } = extractCommonFields(triples);
+  return {
+    type: "conclusion",
+    explainId,
+    explainGraph,
+    label,
+    derivedFrom,
+  };
+}
+
+// ── Unified parser ──────────────────────────────────────────────────
+
 /**
- * Parse triples based on event type
+ * Parse triples into a structured event.
+ * Tries RDF type detection first (agent events), then URI patterns (graph-rag).
+ * Returns null for events with no triples (inner graph-rag plumbing).
  */
 export function parseExplainTriples(
   explainId: string,
   explainGraph: string,
   triples: Triple[]
 ): StructuredExplainEvent | null {
-  const eventType = getEventType(explainId);
+  if (triples.length === 0) return null;
 
+  // Try RDF type detection first (agent events with embedded triples)
+  const rdfEventType = getEventTypeFromTriples(triples);
+  if (rdfEventType !== "unknown") {
+    switch (rdfEventType) {
+      case "agent-question":
+        return parseAgentQuestionTriples(explainId, explainGraph, triples);
+      case "decomposition":
+        return parseDecompositionTriples(explainId, explainGraph, triples);
+      case "analysis":
+        return parseAnalysisTriples(explainId, explainGraph, triples);
+      case "reflection":
+        return parseReflectionTriples(explainId, explainGraph, triples);
+      case "conclusion":
+        return parseConclusionTriples(explainId, explainGraph, triples);
+    }
+  }
+
+  // Fall back to URI pattern detection (graph-rag events)
+  const eventType = getEventType(explainId);
   switch (eventType) {
     case "question":
       return parseQuestionTriples(explainId, explainGraph, triples);

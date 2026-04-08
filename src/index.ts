@@ -142,6 +142,7 @@ export type {
   UseExplainabilityOptions,
   UseExplainabilityResult,
   ExplainabilitySession,
+  StructuredExplainEvent,
   QuestionEvent,
   ExplorationEvent,
   FocusEvent,
@@ -149,6 +150,11 @@ export type {
   SelectedEdge,
   ProvenanceChain,
   ProvenanceChainItem,
+  AgentQuestionEvent,
+  DecompositionEvent,
+  AnalysisEvent,
+  ReflectionEvent,
+  ConclusionEvent,
 } from "./state/explainability";
 export { useExplainabilityStore } from "./state/explainability-store";
 export type { ExplainabilityStoreState } from "./state/explainability-store";
@@ -166,6 +172,7 @@ export type {
 // Explainability utilities
 export {
   getEventType,
+  getEventTypeFromTriples,
   getTermValue as getExplainTermValue,
   extractQuotedTriple,
   parseExplainTriples,

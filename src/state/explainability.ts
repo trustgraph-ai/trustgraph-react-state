@@ -4,19 +4,18 @@
  *
  * Processing strategy:
  * - Events are processed immediately as they arrive
- * - Main event nodes (question, exploration, focus, synthesis) use
- *   stability-based retry: fetch until count > 0 AND stable
- * - Edge sub-objects use simple retry-until-non-empty (fast)
- * - All edge fetching + label resolution + provenance runs in parallel
+ * - Explain triples are embedded directly in events (no store lookups)
+ * - Edge labels are resolved via triple store queries
+ * - Edge label resolution + provenance runs in parallel
+ * - onUpdate callback fires on every session state change, allowing
+ *   callers to sync to external stores (e.g. Zustand)
  */
 
 import { useState, useCallback, useRef } from "react";
-import { useSocket, useConnectionState } from "@trustgraph/react-provider";
 import { useSessionStore } from "./session";
 import { useProvenance } from "./provenance";
 import type { ExplainEvent, Triple } from "@trustgraph/client";
 import {
-  getEventType,
   parseExplainTriples,
   parseEdgeSelectionTriples,
   getTermValue,
@@ -33,6 +32,8 @@ export interface UseExplainabilityOptions {
   collection?: string;
   /** Trace provenance for selected edges (default: true) */
   traceProvenance?: boolean;
+  /** Called on every session state change with the latest session */
+  onUpdate?: (session: ExplainabilitySession) => void;
 }
 
 export interface UseExplainabilityResult {
@@ -66,8 +67,6 @@ export const useExplainability = (
     traceProvenance = true,
   } = options;
 
-  const socket = useSocket();
-  const connectionState = useConnectionState();
   const sessionFlowId = useSessionStore((state) => state.flowId);
   const effectiveFlow = flow ?? sessionFlowId;
 
@@ -75,6 +74,10 @@ export const useExplainability = (
     flow: effectiveFlow,
     collection,
   });
+
+  // Keep onUpdate in a ref so it doesn't break memoisation
+  const onUpdateRef = useRef(options.onUpdate);
+  onUpdateRef.current = options.onUpdate;
 
   const [events, setEvents] = useState<ExplainEvent[]>([]);
   const [session, setSession] = useState<ExplainabilitySession>({});
@@ -89,119 +92,15 @@ export const useExplainability = (
   const isProcessingRef = useRef(false);
 
   /**
-   * Check if connected
-   */
-  const isConnected = useCallback(() => {
-    return (
-      connectionState?.status === "authenticated" ||
-      connectionState?.status === "unauthenticated"
-    );
-  }, [connectionState]);
-
-  /**
-   * Single triple query (no retry)
-   */
-  const fetchTriples = useCallback(
-    async (explainId: string, explainGraph?: string): Promise<Triple[]> => {
-      return socket
-        .flow(effectiveFlow)
-        .triplesQuery(
-          { t: "i", i: explainId },
-          undefined,
-          undefined,
-          100,
-          collection,
-          explainGraph
-        );
-    },
-    [socket, effectiveFlow, collection]
-  );
-
-  /**
-   * Stability-based retry for main event nodes.
-   * Retries until: count > 0 AND count matches previous fetch.
-   * Used for question, exploration, focus, synthesis nodes where the
-   * backend may write multiple triples incrementally.
-   */
-  const queryWithStabilityRetry = useCallback(
-    async (explainId: string, explainGraph?: string, timeoutMs: number = 5000): Promise<Triple[]> => {
-      if (!isConnected()) return [];
-
-      const retryDelay = 500;
-      const maxAttempts = Math.ceil(timeoutMs / retryDelay) + 1;
-      let prevCount = -1;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          const triples = await fetchTriples(explainId, explainGraph);
-          const count = triples.length;
-
-          if (count > 0 && count === prevCount) {
-            return triples;
-          }
-
-          prevCount = count;
-
-          if (attempt < maxAttempts - 1) {
-            await new Promise((r) => setTimeout(r, retryDelay));
-          }
-        } catch (err) {
-          console.error("[explain] triple query failed:", explainId, err);
-          return [];
-        }
-      }
-
-      // Return last fetch if we got anything
-      if (prevCount > 0) {
-        try {
-          return await fetchTriples(explainId, explainGraph);
-        } catch {
-          return [];
-        }
-      }
-
-      return [];
-    },
-    [fetchTriples, isConnected]
-  );
-
-  /**
-   * Simple retry-until-non-empty for sub-objects (edge selections).
-   * These are small atomic writes — either fully there or not yet.
-   */
-  const queryWithSimpleRetry = useCallback(
-    async (explainId: string, explainGraph?: string, timeoutMs: number = 5000): Promise<Triple[]> => {
-      if (!isConnected()) return [];
-
-      const retryDelay = 300;
-      const maxAttempts = Math.ceil(timeoutMs / retryDelay) + 1;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          const triples = await fetchTriples(explainId, explainGraph);
-          if (triples.length > 0) return triples;
-
-          if (attempt < maxAttempts - 1) {
-            await new Promise((r) => setTimeout(r, retryDelay));
-          }
-        } catch (err) {
-          console.error("[explain] triple query failed:", explainId, err);
-          return [];
-        }
-      }
-
-      return [];
-    },
-    [fetchTriples, isConnected]
-  );
-
-  /**
-   * Resolve a single edge: fetch triples, labels, and provenance in parallel
+   * Resolve a single edge: extract from embedded triples, resolve labels
    */
   const resolveEdge = useCallback(
-    async (edgeSelUri: string, explainGraph: string): Promise<SelectedEdge | null> => {
-      const triples = await queryWithSimpleRetry(edgeSelUri, explainGraph);
-      const { edge, reasoning } = parseEdgeSelectionTriples(triples);
+    async (edgeSelUri: string, allTriples: Triple[]): Promise<SelectedEdge | null> => {
+      // Filter embedded triples for this edge selection URI
+      const edgeTriples = allTriples.filter(
+        (t) => getTermValue(t.s) === edgeSelUri
+      );
+      const { edge, reasoning } = parseEdgeSelectionTriples(edgeTriples);
 
       if (!edge) return null;
 
@@ -210,7 +109,7 @@ export const useExplainability = (
         reasoning: reasoning || undefined,
       };
 
-      // Kick off labels and provenance in parallel
+      // Kick off label resolution and provenance in parallel
       const [labels, provenanceChains] = await Promise.all([
         // Labels — all 3 in parallel
         Promise.all([
@@ -232,17 +131,17 @@ export const useExplainability = (
 
       return selectedEdge;
     },
-    [queryWithSimpleRetry, resolveLabel, traceProvenance, traceEdgeProvenance]
+    [resolveLabel, traceProvenance, traceEdgeProvenance]
   );
 
   /**
    * Unpack a focus event — resolve ALL edges in parallel
    */
   const unpackFocusEvent = useCallback(
-    async (focusEvent: FocusEvent): Promise<FocusEvent> => {
+    async (focusEvent: FocusEvent, allTriples: Triple[]): Promise<FocusEvent> => {
       // Fire off all edge resolutions concurrently
       const edgePromises = focusEvent.edgeSelectionUris.map(
-        (uri) => resolveEdge(uri, focusEvent.explainGraph)
+        (uri) => resolveEdge(uri, allTriples)
       );
 
       const results = await Promise.all(edgePromises);
@@ -256,60 +155,72 @@ export const useExplainability = (
     [resolveEdge]
   );
 
-  /** Helper to update both state and ref together */
+  /** Helper to update state, ref, and notify caller together */
   const updateSession = useCallback(
     (updater: (prev: ExplainabilitySession) => ExplainabilitySession) => {
       sessionRef.current = updater(sessionRef.current);
       setSession(updater);
+      onUpdateRef.current?.(sessionRef.current);
     },
     []
   );
+
+  const AGENT_EVENT_TYPES = new Set([
+    "agent-question", "decomposition", "analysis", "reflection", "conclusion",
+  ]);
 
   /**
    * Process a single explain event
    */
   const processEvent = useCallback(
     async (event: ExplainEvent): Promise<void> => {
-      // Query triples for main event node (stability retry)
-      const triples = await queryWithStabilityRetry(event.explainId, event.explainGraph);
+      // Use embedded triples directly from the event
+      const triples = event.explainTriples ?? [];
 
       // Parse into structured data
       const parsed = parseExplainTriples(event.explainId, event.explainGraph, triples);
       if (!parsed) return;
 
-      // Update session based on event type
-      updateSession((prev) => {
-        const next = { ...prev };
-
-        switch (parsed.type) {
-          case "question":
-            next.question = parsed as QuestionEvent;
-            break;
-          case "exploration":
-            next.exploration = parsed as ExplorationEvent;
-            break;
-          case "focus":
-            // Will be updated again after unpacking
-            next.focus = parsed as FocusEvent;
-            break;
-          case "synthesis":
-            next.synthesis = parsed as SynthesisEvent;
-            break;
-        }
-
-        return next;
-      });
-
-      // For focus events, unpack edges in parallel
-      if (parsed.type === "focus") {
-        const unpackedFocus = await unpackFocusEvent(parsed as FocusEvent);
+      if (AGENT_EVENT_TYPES.has(parsed.type)) {
+        // Agent event — append to timeline
         updateSession((prev) => ({
           ...prev,
-          focus: unpackedFocus,
+          agentSteps: [...(prev.agentSteps || []), parsed],
         }));
+      } else {
+        // Graph-RAG event — populate fixed fields
+        updateSession((prev) => {
+          const next = { ...prev };
+
+          switch (parsed.type) {
+            case "question":
+              next.question = parsed as QuestionEvent;
+              break;
+            case "exploration":
+              next.exploration = parsed as ExplorationEvent;
+              break;
+            case "focus":
+              next.focus = parsed as FocusEvent;
+              break;
+            case "synthesis":
+              next.synthesis = parsed as SynthesisEvent;
+              break;
+          }
+
+          return next;
+        });
+
+        // For focus events, unpack edges (labels still need store lookup)
+        if (parsed.type === "focus") {
+          const unpackedFocus = await unpackFocusEvent(parsed as FocusEvent, triples);
+          updateSession((prev) => ({
+            ...prev,
+            focus: unpackedFocus,
+          }));
+        }
       }
     },
-    [queryWithStabilityRetry, unpackFocusEvent, updateSession]
+    [unpackFocusEvent, updateSession]
   );
 
   /**
@@ -379,6 +290,8 @@ export const useExplainability = (
 // Re-export types for convenience
 export type {
   ExplainabilitySession,
+  ExplainEventType,
+  StructuredExplainEvent,
   QuestionEvent,
   ExplorationEvent,
   FocusEvent,
@@ -386,4 +299,9 @@ export type {
   SelectedEdge,
   ProvenanceChain,
   ProvenanceChainItem,
+  AgentQuestionEvent,
+  DecompositionEvent,
+  AnalysisEvent,
+  ReflectionEvent,
+  ConclusionEvent,
 } from "../utils/explainability";

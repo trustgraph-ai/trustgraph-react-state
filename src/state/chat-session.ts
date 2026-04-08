@@ -49,10 +49,19 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
   // Explainability store for persisting sessions
   const addExplainSession = useExplainabilityStore((state) => state.addSession);
 
-  // Explainability hook for processing events (processes each event immediately)
+  // Track the current explain session ID so onUpdate can target the right store key
+  const explainSessionIdRef = useRef<string | undefined>(undefined);
+
+  // Explainability hook — onUpdate syncs every state change to the Zustand store
   const explainability = useExplainability({
     flow: effectiveFlow,
     collection: settings.collection,
+    onUpdate: (session) => {
+      const id = explainSessionIdRef.current;
+      if (id) {
+        addExplainSession(id, session);
+      }
+    },
   });
   const explainabilityRef = useRef(explainability);
   explainabilityRef.current = explainability;
@@ -77,14 +86,9 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
     let accumulated = "";
     let messageAdded = false;
 
-    // Check if explainability is enabled
-    const explainabilityEnabled = settings.featureSwitches.explainability;
-    const sessionId = explainabilityEnabled ? generateSessionId() : undefined;
-
-    // Reset explainability state for new query
-    if (explainabilityEnabled) {
-      explainabilityRef.current.reset();
-    }
+    const sessionId = generateSessionId();
+    explainabilityRef.current.reset();
+    explainSessionIdRef.current = sessionId;
 
     try {
       // Execute Graph RAG with streaming and entity discovery
@@ -102,42 +106,20 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
             accumulated += chunk;
 
             if (!messageAdded) {
-              // Add empty message on first chunk (with session ID if enabled)
               addMessage("ai", accumulated, undefined, sessionId);
               messageAdded = true;
             } else {
-              // Update existing message with accumulated text
               updateLastMessage(accumulated);
             }
           },
-          // Wire up explainability callback if feature is enabled
-          ...(explainabilityEnabled && {
-            onExplain: (event) => {
-              console.log("[explain] event received:", event.explainId);
-              explainabilityRef.current.addEvent(event);
-            },
-          }),
+          onExplain: (event) => {
+            console.log("[explain] event received:", event.explainId);
+            explainabilityRef.current.addEvent(event);
+          },
         },
       });
 
       removeActivity(ragActivity);
-
-      // Store explainability session progressively — events are already being
-      // processed as they arrive. Wait for processing to finish, then snapshot.
-      if (explainabilityEnabled && sessionId) {
-        const waitAndStore = async () => {
-          // Poll until processing completes (events are processed as they arrive)
-          const maxWait = 30000;
-          let elapsed = 0;
-          while (explainabilityRef.current.isProcessingRef.current && elapsed < maxWait) {
-            await new Promise((r) => setTimeout(r, 500));
-            elapsed += 500;
-          }
-          const sess = explainabilityRef.current.sessionRef.current;
-          addExplainSession(sessionId, sess);
-        };
-        waitAndStore();
-      }
 
       // Start embeddings activity
       addActivity(embActivity);
@@ -244,9 +226,14 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
     let answerAccumulated = "";
     let answerMessageAdded = false;
 
+    const sessionId = generateSessionId();
+    explainabilityRef.current.reset();
+    explainSessionIdRef.current = sessionId;
+
     try {
       const response = await inference.agent({
         input,
+        collection: settings.collection,
         callbacks: {
           onThink: (thought, complete) => {
             thinkingAccumulated += thought;
@@ -277,11 +264,15 @@ export const useChatSession = ({ flow }: { flow?: string } = {}) => {
           onAnswer: (answer, complete) => {
             answerAccumulated += answer;
             if (!answerMessageAdded) {
-              addMessage("ai", answerAccumulated, "answer");
+              addMessage("ai", answerAccumulated, "answer", sessionId);
               answerMessageAdded = true;
             } else {
               updateLastMessage(answerAccumulated);
             }
+          },
+          onExplain: (event) => {
+            console.log("[explain] agent event received:", event.explainId);
+            explainabilityRef.current.addEvent(event);
           },
         },
       });
